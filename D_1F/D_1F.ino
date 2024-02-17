@@ -1,6 +1,7 @@
 #include<Wire.h>
 #include<DHT.h>
 #include<LiquidCrystal_I2C.h>
+#include <EEPROM.h>
 
 const int TH11 = 13; //
 const int trig = 12; //
@@ -118,11 +119,59 @@ void loop() {
     delay(200);
   }
   if(estadoBGE == HIGH){
-    //Pues aqui seria de guardar los datos en la eeprom.
-    Serial.println("Mancos");
+    //Guadar datos en la EEPROM.
+    float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
+    guardarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
+    Serial.print("Datos almacenados en memoria.");
     delay(200);
+
+    //Recuperar datos de la EEPROM.
+    /*
+    float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
+    recuperarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
+    Serial.print("Distancia almacenada: ");
+    Serial.print(dist_almacenada);
+    Serial.println(" cm");
+    Serial.print("Luminosidad almacenada: ");
+    Serial.println(lum_almacenada);
+    Serial.print("CO2 almacenada: ");
+    Serial.println(co2_almacenada);
+    Serial.print("Temperatura almacenada: ");
+    Serial.print(temp_almacenada);
+    Serial.println(" C");
+    Serial.print("Humedad almacenada: ");
+    Serial.print(hum_almacenada);
+    Serial.println(" %");
+    delay(200);
+    */
   }
   //Nota final: ya lo probe pero la verdad que ya me dio hueva las validaciones de los botones son las que hay que hacer bien
   // porque lo que hace es que las vuelve a repetir igual voy a hacer un documento aparte explicando mas esto.
   delay(100);
+}
+
+void guardarDatos(float dist_val, float lum_val, float co2_val, float temp_val, float hum_val) {
+  int direccion = 0;
+  EEPROM.put(direccion, dist_val);
+  direccion += sizeof(float);
+  EEPROM.put(direccion, lum_val);
+  direccion += sizeof(float);
+  EEPROM.put(direccion, co2_val);
+  direccion += sizeof(float);
+  EEPROM.put(direccion, temp_val);
+  direccion += sizeof(float);
+  EEPROM.put(direccion, hum_val);
+}
+
+void recuperarDatos(float& dist_val, float& lum_val, float& co2_val, float& temp_val, float& hum_val) {
+  int direccion = 0;
+  EEPROM.get(direccion, dist_val);
+  direccion += sizeof(float);
+  EEPROM.get(direccion, lum_val);
+  direccion += sizeof(float);
+  EEPROM.get(direccion, co2_val);
+  direccion += sizeof(float);
+  EEPROM.get(direccion, temp_val);
+  direccion += sizeof(float);
+  EEPROM.get(direccion, hum_val);
 }
