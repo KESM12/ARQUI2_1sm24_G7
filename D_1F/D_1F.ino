@@ -11,6 +11,7 @@ const int LA = 9; //
 const int MC = 8; //
 const int MP = 7; //
 const int GE = 6; //
+const int ME = 5;
 
 //VARIABLES 
 int temp;
@@ -21,6 +22,7 @@ int estadoBLA = 0;
 int estadoBMC = 0;
 int estadoBMP = 0;
 int estadoBGE = 0;
+int estadoBME = 0;
 
 
 // DEFINICIONES
@@ -41,7 +43,7 @@ void setup() {
   pinMode(MC, INPUT);
   pinMode(MP, INPUT);
   pinMode(GE, INPUT);
-
+  pinMode(ME, INPUT);
   //madres de la lcd.
   lcd.init();
   lcd.backlight();
@@ -67,7 +69,7 @@ void loop() {
   estadoBMC = digitalRead(MC);
   estadoBMP = digitalRead(MP);
   estadoBGE = digitalRead(GE);
-
+  estadoBME = digitalRead(ME);
   //que siga leyendo los datos despues del inicio xddd
   digitalWrite(trig, HIGH);
   delayMicroseconds(10);
@@ -84,70 +86,55 @@ void loop() {
     return;
   }
   
-  //aqui viene lo del lcd 
-  lcd.setCursor(0,0);
-  lcd.print("CO2:");
-  lcd.setCursor(5,0); //columna, fila
-  lcd.print(raw_data);
-  Serial.println("que hay");
-  // De aqui para abajo es solo un ejemplo de como deberias de hacer lo de los botones 
-  // trate de hacerlos todos pero pues me dio hueva hacer lo de la eeprom pero ahi deje el boton. }
-  // Como nota los siguientes botones solo tienen la validación de que los presionen a que voy con esto
-  // hay que hacer mas validaciones y adaptarlo a lo de la lcd como lo de arriba pero pues en cada if
-  // y para lo de la eeprom yo creo que deberias de preguntar o poner un boton que borre.
-  if(estadoBMT == LOW){
+  if (estadoBMT == HIGH) {
     Serial.print(" Humedad: ");
     Serial.print(humedad);
     Serial.print("% Temperatura: ");
     Serial.print(temp);
-    Serial.print(" C ");
-    delay(200);
-  }
-  if(estadoBLA == HIGH){
+    Serial.println(" C ");
+    lcd.setCursor(0, 0);
+    lcd.print("HUM:");
+    lcd.setCursor(5, 0); //columna, fila
+    lcd.print(humedad);
+    lcd.setCursor(0, 1);
+    lcd.print("TEM:");
+    lcd.setCursor(5, 1); //columna, fila
+    lcd.print(temp);
+    delay(2000);
+  } else if (estadoBLA == HIGH) {
     Serial.print(" Luminosidad = ");
-    Serial.print(lum_data);
-    delay(200);
-  }
-  if(estadoBMC == HIGH){
+    Serial.println(lum_data);
+    lcd.setCursor(0, 0);
+    lcd.print("LUM:");
+    lcd.setCursor(5, 0); //columna, fila
+    lcd.print(lum_data);
+    delay(2000);
+  } else if (estadoBMC == HIGH) {
     Serial.print("Gas raw value = ");
-    Serial.print(raw_data);
-  }
-  if(estadoBMP == HIGH){
+    Serial.println(raw_data);
+    lcd.setCursor(0, 0);
+    lcd.print("CO2:");
+    lcd.setCursor(5, 0); //columna, fila
+    lcd.print(raw_data);
+    delay(2000);
+  } else if (estadoBMP == HIGH) {
     Serial.print("Distancia: ");
     Serial.print(distancia);
     Serial.println(" cm");
-    delay(200);
-  }
-  if(estadoBGE == HIGH){
+    lcd.setCursor(0, 0);
+    lcd.print("DIS:");
+    lcd.setCursor(5, 0); //columna, fila
+    lcd.print(distancia);
+    delay(2000);
+  } else if (estadoBGE == HIGH) {
     //Guadar datos en la EEPROM.
     float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
-    guardarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
-    Serial.print("Datos almacenados en memoria.");
-    delay(200);
-
-    //Recuperar datos de la EEPROM.
-    /*
-    float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
-    recuperarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
-    Serial.print("Distancia almacenada: ");
-    Serial.print(dist_almacenada);
-    Serial.println(" cm");
-    Serial.print("Luminosidad almacenada: ");
-    Serial.println(lum_almacenada);
-    Serial.print("CO2 almacenada: ");
-    Serial.println(co2_almacenada);
-    Serial.print("Temperatura almacenada: ");
-    Serial.print(temp_almacenada);
-    Serial.println(" C");
-    Serial.print("Humedad almacenada: ");
-    Serial.print(hum_almacenada);
-    Serial.println(" %");
-    delay(200);
-    */
+    //guardarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
+    Serial.println("Datos almacenados en memoria.");
+    delay(2000);
   }
-  //Nota final: ya lo probe pero la verdad que ya me dio hueva las validaciones de los botones son las que hay que hacer bien
-  // porque lo que hace es que las vuelve a repetir igual voy a hacer un documento aparte explicando mas esto.
-  delay(100);
+  
+  delay(1000);
 }
 
 void guardarDatos(float dist_val, float lum_val, float co2_val, float temp_val, float hum_val) {
