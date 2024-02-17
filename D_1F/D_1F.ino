@@ -23,6 +23,7 @@ int estadoBMC = 0;
 int estadoBMP = 0;
 int estadoBGE = 0;
 int estadoBME = 0;
+bool estadoLectura = false;
 
 
 // DEFINICIONES
@@ -85,8 +86,12 @@ void loop() {
     Serial.println("Error en el sensor");
     return;
   }
+
+  estadoLectura = true;
+
   
-  if (estadoBMT == HIGH) {
+  if(estadoLectura){
+    if (estadoBMT == HIGH) {
     Serial.print(" Humedad: ");
     Serial.print(humedad);
     Serial.print("% Temperatura: ");
@@ -101,6 +106,7 @@ void loop() {
     lcd.setCursor(5, 1); //columna, fila
     lcd.print(temp);
     delay(2000);
+    estadoLectura = false;
   } else if (estadoBLA == HIGH) {
     Serial.print(" Luminosidad = ");
     Serial.println(lum_data);
@@ -109,6 +115,7 @@ void loop() {
     lcd.setCursor(5, 0); //columna, fila
     lcd.print(lum_data);
     delay(2000);
+    estadoLectura = false;
   } else if (estadoBMC == HIGH) {
     Serial.print("Gas raw value = ");
     Serial.println(raw_data);
@@ -117,6 +124,7 @@ void loop() {
     lcd.setCursor(5, 0); //columna, fila
     lcd.print(raw_data);
     delay(2000);
+    estadoLectura = false;
   } else if (estadoBMP == HIGH) {
     Serial.print("Distancia: ");
     Serial.print(distancia);
@@ -126,13 +134,30 @@ void loop() {
     lcd.setCursor(5, 0); //columna, fila
     lcd.print(distancia);
     delay(2000);
+    estadoLectura = false;
   } else if (estadoBGE == HIGH) {
     //Guadar datos en la EEPROM.
-    float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
-    //guardarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
+    //float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
+    guardarDatos(distancia, lum_data, raw_data, temp, humedad);
     Serial.println("Datos almacenados en memoria.");
+    delay(200);
+    //estadoLectura = false;
+  } else if (estadoBME = HIGH){
+    Serial.println("Mostrando los datos de todos los sensores.");
+    lcd.setCursor(0,0);
+    lcd.print("C: ");
+    lcd.setCursor(0, 4);
+    lcd.setCursor(0, 9);
+    lcd.print("T: ");
+    lcd.setCursor(0, 12);
+    lcd.setCursor(0,1);
+    lcd.setCursor(9, 0);
+    lcd.setCursor(9, 1);
+    //mejor implementar un ciclo while y que recorra los datos guardados.
     delay(2000);
   }
+  }
+  
   
   delay(1000);
 }
