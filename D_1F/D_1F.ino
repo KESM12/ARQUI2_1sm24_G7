@@ -11,7 +11,7 @@ const int LA = 9; //
 const int MC = 8; //
 const int MP = 7; //
 const int GE = 6; //
-const int ME = 5;
+const int ME = 5; //
 
 //VARIABLES 
 int temp;
@@ -137,28 +137,47 @@ void loop() {
     estadoLectura = false;
   } else if (estadoBGE == HIGH) {
     //Guadar datos en la EEPROM.
-    //float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
     guardarDatos(distancia, lum_data, raw_data, temp, humedad);
-    Serial.println("Datos almacenados en memoria.");
+    Serial.print("Datos almacenados en memoria.");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Datos almacenados en memoria.");
     delay(200);
-    //estadoLectura = false;
+    estadoLectura = false;
   } else if (estadoBME = HIGH){
-    Serial.println("Mostrando los datos de todos los sensores.");
-    lcd.setCursor(0,0);
-    lcd.print("C: ");
-    lcd.setCursor(0, 4);
-    lcd.setCursor(0, 9);
-    lcd.print("T: ");
-    lcd.setCursor(0, 12);
-    lcd.setCursor(0,1);
-    lcd.setCursor(9, 0);
-    lcd.setCursor(9, 1);
-    //mejor implementar un ciclo while y que recorra los datos guardados.
-    delay(2000);
+    //Recuperar datos de la EEPROM.
+    float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
+    recuperarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
+    Serial.print("Distancia almacenada: ");
+    Serial.print(dist_almacenada);
+    Serial.println(" cm");
+    Serial.print("Luminosidad almacenada: ");
+    Serial.println(lum_almacenada);
+    Serial.print("CO2 almacenada: ");
+    Serial.println(co2_almacenada);
+    Serial.print("Temperatura almacenada: ");
+    Serial.print(temp_almacenada);
+    Serial.println(" C");
+    Serial.print("Humedad almacenada: ");
+    Serial.print(hum_almacenada);
+    Serial.println(" %");
+    //LCD
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: ");
+    lcd.print(temp_almacenada);
+    lcd.print("C  Hum: ");
+    lcd.print(hum_almacenada);
+    lcd.setCursor(0, 1);
+    lcd.print("Dist: ");
+    lcd.print(dist_almacenada);
+    lcd.print("cm  CO2: ");
+    lcd.print(co2_almacenada);
+    lcd.print("ppm  Luz: ");
+    lcd.print(lum_almacenada);
+    delay(200);
   }
   }
-  
-  
   delay(1000);
 }
 
