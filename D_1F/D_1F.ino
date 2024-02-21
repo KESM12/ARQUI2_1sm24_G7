@@ -16,15 +16,15 @@ const int ME = 2;     // Pin para el boton de mostrar los datos almacenados en l
 //VARIABLES
 int temp;
 int humedad;
-float distancia, duracion;
+float distancia;
 int estadoBMT = 0;
 int estadoBLA = 0;
 int estadoBMC = 0;
 int estadoBMP = 0;
 int estadoBGE = 0;
 int estadoBME = 0;
-int raw_data = analogRead(A0);  // Lectura de CO2
-int lum_data = analogRead(A1);  // Lectura de Luminosidad
+int raw_data = 0;  // Lectura de CO2
+int lum_data = 0;  // Lectura de Luminosidad
 
 // Define variables para indicar si se debe mostrar cada tipo de dato
 bool mostrarTemperatura = false;
@@ -34,6 +34,7 @@ bool mostrarProximidad = false;
 bool guardarEeprom = false;
 bool mostrarEeprom = false;
 
+bool calDistancia(int trig, int echo);
 // DEFINICIONES
 DHT dht(TH11, DHT11);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -76,11 +77,7 @@ void loop() {
   estadoBME = digitalRead(ME); // Lectura del botón para mostrar datos de la eeprom
   
   //Configuración del ultrasonico
-  digitalWrite(trig, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trig, LOW);
-  duracion = pulseIn(echo, HIGH); //Tiempo entre las lecturas de las distancias.
-  distancia = duracion/58.4; // Distancia medida en centimetros.
+  //distancia = calDistancia(trig, echo); // Calcular distancia
 
   //If que valida el estado del sensor de temperatura y humedad
   if(isnan(humedad) || isnan(temp)){ //si el sensor de humedad y temperatura falla mostrara el siguiente mensaje en la terminal.
@@ -141,7 +138,7 @@ void loop() {
     lcd.print("LUM:");
     lcd.setCursor(4, 0);
     lcd.print(lum_data);
-    lcd.print("lum");
+    lcd.print("  lum");
     delay(2000);
     mostrarLuminosidad = false;
   } else if (mostrarCO2) {
@@ -156,8 +153,8 @@ void loop() {
     // Mostrar proximidad
     lcd.setCursor(0, 0);
     lcd.print("DIS:");
-    lcd.setCursor(5, 0);
-    lcd.print(distancia);
+    lcd.setCursor(5, 0);   
+    lcd.print(calDistancia(trig, echo));
     lcd.print(" cm");
     delay(2000);
     mostrarProximidad = false;
@@ -210,6 +207,24 @@ void loop() {
 
   }
   delay(100);
+}
+
+bool calDistancia(int trig, int echo) {
+  digitalWrite(trig, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+
+  unsigned long duration = pulseIn(echo, HIGH);
+  int distanciaCM = duration * 0.034 / 2;
+
+  Serial.print("Distancia: ");
+  Serial.print(distanciaCM);
+  Serial.println(" cm");
+  
+  return distanciaCM;
 }
 
 void guardarDatos(float dist_val, float lum_val, float co2_val, float temp_val, float hum_val) {
