@@ -105,16 +105,16 @@ void loop() {
     lcd.print(temp);
     lcd.print("° C");
     // Retraso
-    delay(2000);
+    delay(1000);
   } else if (estadoBLA == HIGH) {
     Serial.print(" Luminosidad = ");
     Serial.println(lum_data);
     lcd.setCursor(0, 0);
     lcd.print("LUM:");
-    lcd.setCursor(5, 0); //columna, fila
+    lcd.setCursor(4, 0); //columna, fila
     lcd.print(lum_data);
     lcd.print("lum");
-    delay(2000);
+    delay(1000);
   } else if (estadoBMC == HIGH) {
     Serial.print("CO2: ");
     Serial.println(raw_data);
@@ -122,7 +122,7 @@ void loop() {
     lcd.print("CO2:");
     lcd.setCursor(5, 0); //columna, fila
     lcd.print(raw_data);
-    delay(2000);
+    delay(1000);
   } else if (estadoBMP == HIGH) {
     Serial.print("Distancia: ");
     Serial.print(distancia);
@@ -132,10 +132,10 @@ void loop() {
     lcd.setCursor(5, 0); //columna, fila
     lcd.print(distancia);
     lcd.print(" cm");
-    delay(2000);
+    delay(1000);
   } else if (estadoBGE == HIGH) {
     //Guadar datos en la EEPROM.
-    guardarDatos(distancia, lum_data, raw_data, temp, humedad);
+    //guardarDatos(distancia, lum_data, raw_data, temp, humedad);
     Serial.print("Datos almacenados en memoria.");
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -178,7 +178,7 @@ void loop() {
     lcd.print(lum_almacenada);
     delay(2000);
   }
-  delay(1000);
+  delay(100);
 }
 
 void guardarDatos(float dist_val, float lum_val, float co2_val, float temp_val, float hum_val) {
