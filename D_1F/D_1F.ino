@@ -26,7 +26,13 @@ int estadoBME = 0;
 int raw_data = analogRead(A0);  // Lectura de CO2
 int lum_data = analogRead(A1);  // Lectura de Luminosidad
 
-
+// Define variables para indicar si se debe mostrar cada tipo de dato
+bool mostrarTemperatura = false;
+bool mostrarLuminosidad = false;
+bool mostrarCO2 = false;
+bool mostrarProximidad = false;
+bool guardarEeprom = false;
+bool mostrarEeprom = false;
 
 // DEFINICIONES
 DHT dht(TH11, DHT11);
@@ -54,6 +60,7 @@ void setup() {
 
 void loop() {
   lcd.clear(); // Limpiamos el LCD.
+  lcd.print("Bienvenido.");
   digitalWrite(trig, LOW); //para que lea algo y lo estabilicemos desde el inicio.
   //delay(200);esto era opcional 
 
@@ -86,54 +93,76 @@ void loop() {
     return;
   }
 
+  // Verificar si se debe mostrar cada tipo de dato y mostrarlo durante 2 segundos
   if (estadoBMT == HIGH) {
-    // Monitor serial.
-    Serial.print(" Humedad: ");
-    Serial.print(humedad);
-    Serial.print("% Temperatura: ");
-    Serial.print(temp);
-    Serial.println(" C ");
-    // LCD.
+    lcd.clear(); // Limpiamos el LCD.
+    mostrarTemperatura = true;
+    delay(50); // Pequeño retraso para evitar el rebote del botón
+  } else if (estadoBLA == HIGH) {
+    lcd.clear(); // Limpiamos el LCD.
+    mostrarLuminosidad = true;
+    delay(50);
+  } else if (estadoBMC == HIGH) {
+    lcd.clear(); // Limpiamos el LCD.
+    mostrarCO2 = true;
+    delay(50);
+  } else if (estadoBMP == HIGH) {
+    lcd.clear(); // Limpiamos el LCD.
+    mostrarProximidad = true;
+    delay(50);
+  } else if (estadoBGE == HIGH) {
+    lcd.clear(); // Limpiamos el LCD.
+    guardarEeprom = true;
+    delay(50);
+  } else if (estadoBME == HIGH) {
+    lcd.clear(); // Limpiamos el LCD.
+    mostrarEeprom = true;
+    delay(50);
+  }
+
+
+  // Mostrar los datos según corresponda
+  if (mostrarTemperatura) {
+    // Mostrar temperatura y humedad
     lcd.setCursor(0, 0);
     lcd.print("HUM:");
-    lcd.setCursor(5, 0); //columna, fila
+    lcd.setCursor(5, 0);
     lcd.print(humedad);
     lcd.print(" % ");
     lcd.setCursor(0, 1);
     lcd.print("TEM:");
-    lcd.setCursor(5, 1); //columna, fila
+    lcd.setCursor(5, 1);
     lcd.print(temp);
     lcd.print("° C");
-    // Retraso
-    delay(1000);
-  } else if (estadoBLA == HIGH) {
-    Serial.print(" Luminosidad = ");
-    Serial.println(lum_data);
+    delay(2000);
+    mostrarTemperatura = false;
+  } else if (mostrarLuminosidad) {
+    // Mostrar luminosidad
     lcd.setCursor(0, 0);
     lcd.print("LUM:");
-    lcd.setCursor(4, 0); //columna, fila
+    lcd.setCursor(4, 0);
     lcd.print(lum_data);
     lcd.print("lum");
-    delay(1000);
-  } else if (estadoBMC == HIGH) {
-    Serial.print("CO2: ");
-    Serial.println(raw_data);
+    delay(2000);
+    mostrarLuminosidad = false;
+  } else if (mostrarCO2) {
+    // Mostrar CO2
     lcd.setCursor(0, 0);
     lcd.print("CO2:");
-    lcd.setCursor(5, 0); //columna, fila
+    lcd.setCursor(5, 0);
     lcd.print(raw_data);
-    delay(1000);
-  } else if (estadoBMP == HIGH) {
-    Serial.print("Distancia: ");
-    Serial.print(distancia);
-    Serial.println(" cm");
+    delay(2000);
+    mostrarCO2 = false;
+  } else if (mostrarProximidad) {
+    // Mostrar proximidad
     lcd.setCursor(0, 0);
     lcd.print("DIS:");
-    lcd.setCursor(5, 0); //columna, fila
+    lcd.setCursor(5, 0);
     lcd.print(distancia);
     lcd.print(" cm");
-    delay(1000);
-  } else if (estadoBGE == HIGH) {
+    delay(2000);
+    mostrarProximidad = false;
+  } else if (guardarEeprom) {
     //Guadar datos en la EEPROM.
     //guardarDatos(distancia, lum_data, raw_data, temp, humedad);
     Serial.print("Datos almacenados en memoria.");
@@ -142,8 +171,9 @@ void loop() {
     lcd.print("Datos");
     lcd.setCursor(0, 1);
     lcd.print("almacenados.");
+    guardarEeprom = false;
     delay(1000);
-  } else if (estadoBME = HIGH){
+  } else if (mostrarEeprom){
     //Recuperar datos de la EEPROM.
     float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
     recuperarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
@@ -176,7 +206,9 @@ void loop() {
     lcd.print(co2_almacenada);
     lcd.print("ppm  Luz: ");
     lcd.print(lum_almacenada);
+    mostrarEeprom = false;
     delay(2000);
+
   }
   delay(100);
 }
