@@ -6,12 +6,12 @@
 const int TH11 = 13;  // Pin donde se encuentra conectado el sensor dht11 mide humedad y temperatura.
 const int trig = 12;  // Pin del ultrasonico.
 const int echo = 11;  // Pin del ultrasonico.
-const int MT = 2;     // Pin para el boton de mostrar temperatura y humedad
-const int LA = 3;     // Pin para el boton de mostrar luminocidad
-const int MC = 19;    // Pin para el boton de mostrar co2
-const int MP = 18;    // Pin para el boton de mostrar proximidad
-const int GE = 6;     // Pin para el boton de guardar todos los datos en la eeprom
-const int ME = 5;     // Pin para el boton de mostrar los datos almacenados en la eeprom
+const int MT = 7;     // Pin para el boton de mostrar temperatura y humedad
+const int LA = 6;     // Pin para el boton de mostrar luminocidad
+const int MC = 4;    // Pin para el boton de mostrar co2
+const int MP = 5;    // Pin para el boton de mostrar proximidad
+const int GE = 3;     // Pin para el boton de guardar todos los datos en la eeprom
+const int ME = 2;     // Pin para el boton de mostrar los datos almacenados en la eeprom
 
 //VARIABLES
 int temp;
@@ -49,40 +49,35 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.print("ACE2 GRUPO 7");
-  //Interrupciones
-  attachInterrupt(digitalPinToInterrupt(2), MTH, RISING);   // MOSTRAR TEMP Y HUM
-  attachInterrupt(digitalPinToInterrupt(3), MoL, RISING);    // MOSTRAR LUMI
-  attachInterrupt(digitalPinToInterrupt(2), MoP, RISING);    // MOSTRAR PROX
-  attachInterrupt(digitalPinToInterrupt(2), MCO2, RISING);  // MOSTRAR CO2
-  delay(2000);                                              // Retraso de 2 segundos para salir del setup.
+  delay(2000); // Retraso de 2 segundos para salir del setup.
 }
 
 void loop() {
-  lcd.clear();              // Limpiamos el LCD.
-  digitalWrite(trig, LOW);  //para que lea algo y lo estabilicemos desde el inicio.
-  //delay(200);esto era opcional
+  lcd.clear(); // Limpiamos el LCD.
+  digitalWrite(trig, LOW); //para que lea algo y lo estabilicemos desde el inicio.
+  //delay(200);esto era opcional 
 
   // Variables de almacenamiento para la lecturas de los sensores
-  humedad = dht.readHumidity();   // Lectura de humedad
-  temp = dht.readTemperature();   // Lectura de
-  int raw_data = analogRead(A0);  // Lectura de CO2
-  int lum_data = analogRead(A1);  // Lectura de Luminosidad
-  estadoBMT = digitalRead(MT);    // Lectura del botón para temperatura y humedad
-  estadoBLA = digitalRead(LA);    // Lectura del botón para luminosidad
-  estadoBMC = digitalRead(MC);    // Lectura del botón para CO2
-  estadoBMP = digitalRead(MP);    // Lectura del botón para proximidad
-  estadoBGE = digitalRead(GE);    // Lectura del botón para guardar datos en la eeprom
-  estadoBME = digitalRead(ME);    // Lectura del botón para mostrar datos de la eeprom
-
+  humedad = dht.readHumidity(); // Lectura de humedad
+  temp = dht.readTemperature(); // Lectura de
+  int raw_data = analogRead(A0); // Lectura de CO2
+  int lum_data = analogRead(A1); // Lectura de Luminosidad
+  estadoBMT = digitalRead(MT); // Lectura del botón para temperatura y humedad
+  estadoBLA = digitalRead(LA); // Lectura del botón para luminosidad
+  estadoBMC = digitalRead(MC); // Lectura del botón para CO2
+  estadoBMP = digitalRead(MP); // Lectura del botón para proximidad
+  estadoBGE = digitalRead(GE); // Lectura del botón para guardar datos en la eeprom
+  estadoBME = digitalRead(ME); // Lectura del botón para mostrar datos de la eeprom
+  
   //Configuración del ultrasonico
   digitalWrite(trig, HIGH);
   delayMicroseconds(10);
   digitalWrite(trig, LOW);
-  duracion = pulseIn(echo, HIGH);  //Tiempo entre las lecturas de las distancias.
-  distancia = duracion / 58.4;     // Distancia medida en centimetros.
+  duracion = pulseIn(echo, HIGH); //Tiempo entre las lecturas de las distancias.
+  distancia = duracion/58.4; // Distancia medida en centimetros.
 
   //If que valida el estado del sensor de temperatura y humedad
-  if (isnan(humedad) || isnan(temp)) {  //si el sensor de humedad y temperatura falla mostrara el siguiente mensaje en la terminal.
+  if(isnan(humedad) || isnan(temp)){ //si el sensor de humedad y temperatura falla mostrara el siguiente mensaje en la terminal.
     Serial.println("Error en el sensor");
     lcd.setCursor(0, 0);
     lcd.println("Sensor MQ135");
@@ -90,7 +85,55 @@ void loop() {
     lcd.println("no encontrado");
     return;
   }
-  if (estadoBGE == HIGH) {
+
+  if (estadoBMT == HIGH) {
+    // Monitor serial.
+    Serial.print(" Humedad: ");
+    Serial.print(humedad);
+    Serial.print("% Temperatura: ");
+    Serial.print(temp);
+    Serial.println(" C ");
+    // LCD.
+    lcd.setCursor(0, 0);
+    lcd.print("HUM:");
+    lcd.setCursor(5, 0); //columna, fila
+    lcd.print(humedad);
+    lcd.print(" % ");
+    lcd.setCursor(0, 1);
+    lcd.print("TEM:");
+    lcd.setCursor(5, 1); //columna, fila
+    lcd.print(temp);
+    lcd.print("° C");
+    // Retraso
+    delay(2000);
+  } else if (estadoBLA == HIGH) {
+    Serial.print(" Luminosidad = ");
+    Serial.println(lum_data);
+    lcd.setCursor(0, 0);
+    lcd.print("LUM:");
+    lcd.setCursor(5, 0); //columna, fila
+    lcd.print(lum_data);
+    lcd.print("lum");
+    delay(2000);
+  } else if (estadoBMC == HIGH) {
+    Serial.print("CO2: ");
+    Serial.println(raw_data);
+    lcd.setCursor(0, 0);
+    lcd.print("CO2:");
+    lcd.setCursor(5, 0); //columna, fila
+    lcd.print(raw_data);
+    delay(2000);
+  } else if (estadoBMP == HIGH) {
+    Serial.print("Distancia: ");
+    Serial.print(distancia);
+    Serial.println(" cm");
+    lcd.setCursor(0, 0);
+    lcd.print("DIS:");
+    lcd.setCursor(5, 0); //columna, fila
+    lcd.print(distancia);
+    lcd.print(" cm");
+    delay(2000);
+  } else if (estadoBGE == HIGH) {
     //Guadar datos en la EEPROM.
     guardarDatos(distancia, lum_data, raw_data, temp, humedad);
     Serial.print("Datos almacenados en memoria.");
@@ -100,7 +143,7 @@ void loop() {
     lcd.setCursor(0, 1);
     lcd.print("almacenados.");
     delay(1000);
-  } else if (estadoBME = HIGH) {
+  } else if (estadoBME = HIGH){
     //Recuperar datos de la EEPROM.
     float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
     recuperarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
@@ -162,59 +205,4 @@ void recuperarDatos(float& dist_val, float& lum_val, float& co2_val, float& temp
   EEPROM.get(direccion, temp_val);
   direccion += sizeof(float);
   EEPROM.get(direccion, hum_val);
-}
-
-void MTH() {
-  // Monitor serial.
-  Serial.print(" Humedad: ");
-  Serial.print(humedad);
-  Serial.print("% Temperatura: ");
-  Serial.print(temp);
-  Serial.println(" C ");
-  // LCD.
-  lcd.setCursor(0, 0);
-  lcd.print("HUM:");
-  lcd.setCursor(5, 0);  //columna, fila
-  lcd.print(humedad);
-  lcd.print(" % ");
-  lcd.setCursor(0, 1);
-  lcd.print("TEM:");
-  lcd.setCursor(5, 1);  //columna, fila
-  lcd.print(temp);
-  lcd.print("° C");
-  // Retraso
-  delay(2000);
-}
-
-void MoL() {
-  Serial.print(" Luminosidad = ");
-  Serial.println(lum_data);
-  lcd.setCursor(0, 0);
-  lcd.print("LUM:");
-  lcd.setCursor(5, 0);  //columna, fila
-  lcd.print(lum_data);
-  lcd.print("lum");
-  delay(2000);
-}
-
-void MoP() {
-  Serial.print("Distancia: ");
-  Serial.print(distancia);
-  Serial.println(" cm");
-  lcd.setCursor(0, 0);
-  lcd.print("DIS:");
-  lcd.setCursor(5, 0);  //columna, fila
-  lcd.print(distancia);
-  lcd.print(" cm");
-  delay(2000);
-}
-
-void MCO2() {
-  Serial.print("CO2: ");
-  Serial.println(raw_data);
-  lcd.setCursor(0, 0);
-  lcd.print("CO2:");
-  lcd.setCursor(5, 0);  //columna, fila
-  lcd.print(raw_data);
-  delay(2000);
 }
