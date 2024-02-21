@@ -62,7 +62,6 @@ void loop() {
   lcd.clear(); // Limpiamos el LCD.
   lcd.print("Bienvenido.");
   digitalWrite(trig, LOW); //para que lea algo y lo estabilicemos desde el inicio.
-  //delay(200);esto era opcional 
 
   // Variables de almacenamiento para la lecturas de los sensores
   humedad = dht.readHumidity(); // Lectura de humedad
