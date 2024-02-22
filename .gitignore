@@ -1,3 +1,3 @@
-.workspace
-.hex
-.HEX
+*.workspace
+*.hex
+*.HEX
