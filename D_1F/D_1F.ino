@@ -8,31 +8,29 @@ const int trig = 12;  // Pin del ultrasonico.
 const int echo = 11;  // Pin del ultrasonico.
 const int MT = 7;     // Pin para el boton de mostrar temperatura y humedad
 const int LA = 6;     // Pin para el boton de mostrar luminocidad
-const int MC = 4;    // Pin para el boton de mostrar co2
-const int MP = 5;    // Pin para el boton de mostrar proximidad
+const int MP = 5;     // Pin para el boton de mostrar proximidad
+const int MC = 4;     // Pin para el boton de mostrar co2
 const int GE = 3;     // Pin para el boton de guardar todos los datos en la eeprom
 const int ME = 2;     // Pin para el boton de mostrar los datos almacenados en la eeprom
 
 //VARIABLES
+float distancia;
+int lum_data = 0;  // Lectura de Luminosidad
+int raw_data = 0;  // Lectura de CO2
 int temp;
 int humedad;
-float distancia;
 int estadoBMT = 0;
 int estadoBLA = 0;
 int estadoBMC = 0;
 int estadoBMP = 0;
-int estadoBGE = 0;
-int estadoBME = 0;
-int raw_data = 0;  // Lectura de CO2
-int lum_data = 0;  // Lectura de Luminosidad
 
 // Define variables para indicar si se debe mostrar cada tipo de dato
 bool mostrarTemperatura = false;
 bool mostrarLuminosidad = false;
 bool mostrarCO2 = false;
 bool mostrarProximidad = false;
-bool guardarEeprom = false;
-bool mostrarEeprom = false;
+volatile bool guardarEeprom = false;
+volatile bool mostrarEeprom = false;
 
 bool calDistancia(int trig, int echo);
 // DEFINICIONES
@@ -50,8 +48,11 @@ void setup() {
   pinMode(LA, INPUT);
   pinMode(MC, INPUT);
   pinMode(MP, INPUT);
-  pinMode(GE, INPUT);
-  pinMode(ME, INPUT);
+  pinMode(GE, INPUT_PULLUP);
+  pinMode(ME, INPUT_PULLUP);
+  // Interrupciones
+  attachInterrupt(digitalPinToInterrupt(GE), estado_guardarEeprom, RISING);
+  attachInterrupt(digitalPinToInterrupt(ME), estado_mostrarEeprom, RISING);
   // Configuracion de la LCD.
   lcd.init();
   lcd.backlight();
@@ -67,14 +68,12 @@ void loop() {
   // Variables de almacenamiento para la lecturas de los sensores
   humedad = dht.readHumidity(); // Lectura de humedad
   temp = dht.readTemperature(); // Lectura de
-  int raw_data = analogRead(A0); // Lectura de CO2
-  int lum_data = analogRead(A1); // Lectura de Luminosidad
+  raw_data = analogRead(A0); // Lectura de CO2
+  lum_data = analogRead(A1); // Lectura de Luminosidad
   estadoBMT = digitalRead(MT); // Lectura del botón para temperatura y humedad
   estadoBLA = digitalRead(LA); // Lectura del botón para luminosidad
   estadoBMC = digitalRead(MC); // Lectura del botón para CO2
   estadoBMP = digitalRead(MP); // Lectura del botón para proximidad
-  estadoBGE = digitalRead(GE); // Lectura del botón para guardar datos en la eeprom
-  estadoBME = digitalRead(ME); // Lectura del botón para mostrar datos de la eeprom
   
   //Configuración del ultrasonico
   //distancia = calDistancia(trig, echo); // Calcular distancia
@@ -106,16 +105,7 @@ void loop() {
     lcd.clear(); // Limpiamos el LCD.
     mostrarProximidad = true;
     delay(50);
-  } else if (estadoBGE == HIGH) {
-    lcd.clear(); // Limpiamos el LCD.
-    guardarEeprom = true;
-    delay(50);
-  } else if (estadoBME == HIGH) {
-    lcd.clear(); // Limpiamos el LCD.
-    mostrarEeprom = true;
-    delay(50);
   }
-
 
   // Mostrar los datos según corresponda
   if (mostrarTemperatura) {
@@ -160,7 +150,7 @@ void loop() {
     mostrarProximidad = false;
   } else if (guardarEeprom) {
     //Guadar datos en la EEPROM.
-    //guardarDatos(distancia, lum_data, raw_data, temp, humedad);
+    guardarDatos(distancia, lum_data, raw_data, temp, humedad);
     Serial.print("Datos almacenados en memoria.");
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -251,4 +241,12 @@ void recuperarDatos(float& dist_val, float& lum_val, float& co2_val, float& temp
   EEPROM.get(direccion, temp_val);
   direccion += sizeof(float);
   EEPROM.get(direccion, hum_val);
+}
+
+void estado_guardarEeprom() {
+  guardarEeprom = true;
+}
+
+void estado_mostrarEeprom() {
+  mostrarEeprom = true;
 }
