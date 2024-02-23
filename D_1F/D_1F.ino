@@ -57,29 +57,37 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.print("ACE2 GRUPO 7");
-  delay(2000); // Retraso de 2 segundos para salir del setup.
+  delay(2000);  // Retraso de 2 segundos para salir del setup.
 }
 
 void loop() {
-  lcd.clear(); // Limpiamos el LCD.
+  lcd.clear();  // Limpiamos el LCD.
   lcd.print("Bienvenido.");
-  digitalWrite(trig, LOW); //para que lea algo y lo estabilicemos desde el inicio.
+  //digitalWrite(trig, LOW); //para que lea algo y lo estabilicemos desde el inicio.
 
   // Variables de almacenamiento para la lecturas de los sensores
-  humedad = dht.readHumidity(); // Lectura de humedad
-  temp = dht.readTemperature(); // Lectura de
-  raw_data = analogRead(A0); // Lectura de CO2
-  lum_data = analogRead(A1); // Lectura de Luminosidad
-  estadoBMT = digitalRead(MT); // Lectura del botón para temperatura y humedad
-  estadoBLA = digitalRead(LA); // Lectura del botón para luminosidad
-  estadoBMC = digitalRead(MC); // Lectura del botón para CO2
-  estadoBMP = digitalRead(MP); // Lectura del botón para proximidad
-  
-  //Configuración del ultrasonico
-  //distancia = calDistancia(trig, echo); // Calcular distancia
+  humedad = dht.readHumidity();  // Lectura de humedad
+  temp = dht.readTemperature();  // Lectura de
+  raw_data = analogRead(A0);     // Lectura de CO2
+  lum_data = analogRead(A1);     // Lectura de Luminosidad
+  long t;                        //timepo que demora en llegar el eco
+  long d;                        //distancia en centimetros
+
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);  //Enviamos un pulso de 10us
+  digitalWrite(trig, LOW);
+
+  t = pulseIn(echo, HIGH);  //obtenemos el ancho del pulso
+  d = t / 59;               // escalamos una distancia en cm.
+
+  estadoBMT = digitalRead(MT);  // Lectura del botón para temperatura y humedad
+  estadoBLA = digitalRead(LA);  // Lectura del botón para luminosidad
+  estadoBMC = digitalRead(MC);  // Lectura del botón para CO2
+  estadoBMP = digitalRead(MP);  // Lectura del botón para proximidad
+
 
   //If que valida el estado del sensor de temperatura y humedad
-  if(isnan(humedad) || isnan(temp)){ //si el sensor de humedad y temperatura falla mostrara el siguiente mensaje en la terminal.
+  if (isnan(humedad) || isnan(temp)) {  //si el sensor de humedad y temperatura falla mostrara el siguiente mensaje en la terminal.
     Serial.println("Error en el sensor");
     lcd.setCursor(0, 0);
     lcd.println("Sensor MQ135");
@@ -90,19 +98,19 @@ void loop() {
 
   // Verificar si se debe mostrar cada tipo de dato y mostrarlo durante 2 segundos
   if (estadoBMT == HIGH) {
-    lcd.clear(); // Limpiamos el LCD.
+    lcd.clear();  // Limpiamos el LCD.
     mostrarTemperatura = true;
-    delay(50); // Pequeño retraso para evitar el rebote del botón
+    delay(50);  // Pequeño retraso para evitar el rebote del botón
   } else if (estadoBLA == HIGH) {
-    lcd.clear(); // Limpiamos el LCD.
+    lcd.clear();  // Limpiamos el LCD.
     mostrarLuminosidad = true;
     delay(50);
   } else if (estadoBMC == HIGH) {
-    lcd.clear(); // Limpiamos el LCD.
+    lcd.clear();  // Limpiamos el LCD.
     mostrarCO2 = true;
     delay(50);
   } else if (estadoBMP == HIGH) {
-    lcd.clear(); // Limpiamos el LCD.
+    lcd.clear();  // Limpiamos el LCD.
     mostrarProximidad = true;
     delay(50);
   }
@@ -119,7 +127,7 @@ void loop() {
     lcd.print("TEM:");
     lcd.setCursor(5, 1);
     lcd.print(temp);
-    lcd.print("° C");
+    lcd.print(" C");
     delay(2000);
     mostrarTemperatura = false;
   } else if (mostrarLuminosidad) {
@@ -137,20 +145,22 @@ void loop() {
     lcd.print("CO2:");
     lcd.setCursor(5, 0);
     lcd.print(raw_data);
+    lcd.setCursor(9, 0);
+    lcd.print("ppm");
     delay(2000);
     mostrarCO2 = false;
   } else if (mostrarProximidad) {
     // Mostrar proximidad
     lcd.setCursor(0, 0);
     lcd.print("DIS:");
-    lcd.setCursor(5, 0);   
-    lcd.print(calDistancia(trig, echo));
+    lcd.setCursor(5, 0);
+    lcd.print(d);  //calDistancia(trig, echo)
     lcd.print(" cm");
     delay(2000);
     mostrarProximidad = false;
   } else if (guardarEeprom) {
     //Guadar datos en la EEPROM.
-    guardarDatos(distancia, lum_data, raw_data, temp, humedad);
+    guardarDatos(d, lum_data, raw_data, temp, humedad);
     Serial.print("Datos almacenados en memoria.");
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -159,7 +169,7 @@ void loop() {
     lcd.print("almacenados.");
     guardarEeprom = false;
     delay(1000);
-  } else if (mostrarEeprom){
+  } else if (mostrarEeprom) {
     //Recuperar datos de la EEPROM.
     float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
     recuperarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
@@ -176,46 +186,38 @@ void loop() {
     Serial.print("Humedad almacenada: ");
     Serial.print(hum_almacenada);
     Serial.println(" %");
-    //LCD
+    // lcd
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Temp: ");
     lcd.print(temp_almacenada);
-    lcd.print("C  Hum: ");
-    lcd.print(hum_almacenada);
+    lcd.print(" C");
     lcd.setCursor(0, 1);
+    lcd.print("Hum: ");
+    lcd.print(hum_almacenada);
+    lcd.print(" %");
+    delay(5000);
+    lcd.clear();
+    lcd.setCursor(0, 0);
     lcd.print("Dist: ");
     lcd.print(dist_almacenada);
-    lcd.print("cm   ");
+    lcd.print(" cm");
     lcd.setCursor(0, 1);
     lcd.print("CO2: ");
     lcd.print(co2_almacenada);
-    lcd.print("ppm  Luz: ");
+    lcd.print(" ppm");
+    delay(5000);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Luz: ");
     lcd.print(lum_almacenada);
     mostrarEeprom = false;
     delay(2000);
-
   }
   delay(900);
 }
 
-bool calDistancia(int trig, int echo) {
-  digitalWrite(trig, LOW);
-  delayMicroseconds(2);
 
-  digitalWrite(trig, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trig, LOW);
-
-  unsigned long duration = pulseIn(echo, HIGH);
-  int distanciaCM = duration * 0.034 / 2;
-
-  Serial.print("Distancia: ");
-  Serial.print(distanciaCM);
-  Serial.println(" cm");
-  
-  return distanciaCM;
-}
 
 void guardarDatos(float dist_val, float lum_val, float co2_val, float temp_val, float hum_val) {
   int direccion = 0;
