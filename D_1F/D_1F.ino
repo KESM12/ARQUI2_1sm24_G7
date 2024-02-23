@@ -48,11 +48,11 @@ void setup() {
   pinMode(LA, INPUT);
   pinMode(MC, INPUT);
   pinMode(MP, INPUT);
-  pinMode(GE, INPUT_PULLUP);
-  pinMode(ME, INPUT_PULLUP);
+  pinMode(GE, INPUT);
+  pinMode(ME, INPUT);
   // Interrupciones
-  attachInterrupt(digitalPinToInterrupt(GE), estado_guardarEeprom, RISING);
-  attachInterrupt(digitalPinToInterrupt(ME), estado_mostrarEeprom, RISING);
+  attachInterrupt(digitalPinToInterrupt(GE), estado_guardarEeprom, FALLING);
+  attachInterrupt(digitalPinToInterrupt(ME), estado_mostrarEeprom, FALLING);
   // Configuracion de la LCD.
   lcd.init();
   lcd.backlight();
@@ -196,7 +196,7 @@ void loop() {
     delay(2000);
 
   }
-  delay(100);
+  delay(900);
 }
 
 bool calDistancia(int trig, int echo) {
@@ -245,8 +245,10 @@ void recuperarDatos(float& dist_val, float& lum_val, float& co2_val, float& temp
 
 void estado_guardarEeprom() {
   guardarEeprom = true;
+  delay(50);
 }
 
 void estado_mostrarEeprom() {
   mostrarEeprom = true;
+  delay(50);
 }
