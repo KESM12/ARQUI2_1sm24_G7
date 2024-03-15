@@ -21,18 +21,71 @@ PubSubClient client(espClient);
 //serial, pines 2: rx y 3: tx
 SoftwareSerial soft(8, 10);
 
+
+//PIN para el ventilador
+int fanPin = 9;
+
 //Contador para el envio de datos
 unsigned long lastSend;
 
 int status = WL_IDLE_STATUS;
 
+String resultS = "";
+int var = 0;
+
+
+//Función para recibir mensajes desde el broker
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Mensaje recibido [");
+  Serial.print(topic);
+  Serial.print("] ");
+
+  char payload_string[length + 1];
+  
+  int resultI;
+
+  memcpy(payload_string, payload, length);
+  payload_string[length] = '\0';
+  resultI = atoi(payload_string);
+  
+  var = resultI;
+
+  resultS = "";
+  
+  for (int i=0;i<length;i++) {
+    resultS= resultS + (char)payload[i];
+     Serial.println(resultS);
+  }
+
+ 
+  
+  // Control del ventilador basado en el mensaje recibido
+  if (strcmp(topic, "ENTRADA") == 0) {
+    if (var == 1) {
+      // Encender el ventilador
+      digitalWrite(fanPin, HIGH);
+    } else {
+      // Apagar el ventilador
+      digitalWrite(fanPin, LOW);
+    }
+  }
+}
+
+
+
 void setup() {
     //Inicializamos la comunicación serial para el log
     Serial.begin(9600);
+    
+    // Pin Mode 
+    pinMode(fanPin, OUTPUT);
+
     //Iniciamos la conexión a la red WiFi
     InitWiFi();
     //Colocamos la referencia del servidor y el puerto
     client.setServer( server, 1883 );
+    client.setCallback(callback);
+    client.subscribe("ENTRADAINO"); 
     lastSend = 0;
 }
 
@@ -47,7 +100,7 @@ void loop() {
     //Validamos si esta la conexión del servidor
     if(!client.connected() ) {
         //Si falla reintentamos la conexión
-        client.subscribe("Entrada/0");
+        client.subscribe("ENTRADA");
         reconnectClient();
     }
 
@@ -58,23 +111,25 @@ void loop() {
     }
 
     client.loop();
+    
+     if(var == 0){
+    digitalWrite(fanPin, LOW);
+    } else if (var == 1) {
+      digitalWrite(fanPin, HIGH);
+    }
 }
 
-void sendDataTopic()
-{
-    Serial.println("Envianto Datos");
-    String payload = "";
-    float valueAdc = analogRead(0);
-    float volts = (valueAdc / 1023.0) * 5;
-    float celsius = volts * 100.00; 
+void sendDataTopic() {
+    Serial.println("Enviando Datos");
+    String payload = "  PTM NO SALE COMPI 2 ";
     
-    payload += celsius;
-    
-    char attributes[100];
-    payload.toCharArray( attributes, 100 );
-    client.publish( "FAN/0", attributes );
-    Serial.println( attributes );
+
+    // Publicar el payload como texto plano en el topic "FAN/0"
+    client.publish("FAN", payload.c_str());
+
+    Serial.println(payload);
 }
+
 
 //Inicializamos la conexión a la red wifi
 void InitWiFi()

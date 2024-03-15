@@ -3,10 +3,47 @@
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
 #include <SoftwareSerial.h>
-#include <WiFi.h>
+#include <WiFiEsp.h>
+#include <WiFiEspClient.h>
 #include <PubSubClient.h>
 
-//SoftwareSerial WIFI(19, 18); //TX | TX
+//==========================================================================================================
+//==========================================================================================================
+//============================================= Conf WiFi ==================================================
+//==========================================================================================================
+//==========================================================================================================
+
+//Conexión a la red wifi: nombre de la red y contraseña
+#define WIFI_AP "7u7"
+#define WIFI_PASSWORD "A8151623a2"
+
+//Nombre o IP del servidor mosquitto
+char *server = "broker.emqx.io";
+
+//Inicializamos el objeto de cliente esp
+WiFiEspClient espClient;
+
+//Iniciamos el objeto subscriptor del cliente 
+//con el objeto del cliente
+PubSubClient client(espClient);
+
+//Conexión serial para el esp con una comunicación
+//serial, pines 2: rx y 3: tx
+SoftwareSerial soft(8, 10);
+
+//Contador para el envio de datos
+unsigned long lastSend;
+
+int status = WL_IDLE_STATUS;
+
+String resultS = "";
+int var = 0;
+
+//==========================================================================================================
+//==========================================================================================================
+//============================================= Declaraciones F1 ===========================================
+//==========================================================================================================
+//==========================================================================================================
 
 const int TH11 = 13;  // Pin donde se encuentra conectado el sensor dht11 mide humedad y temperatura.
 const int trig = 12;  // Pin del ultrasonico.
@@ -43,10 +80,20 @@ bool calDistancia(int trig, int echo);
 DHT dht(TH11, DHT11);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
+
+//==========================================================================================================
+//==========================================================================================================
+//=================================================== Setup ================================================
+//==========================================================================================================
+//==========================================================================================================
+
+
 void setup() {
   //Inicializaciones de los dispositivos.
   Serial.begin(9600);
-  //WIFI.begin(9600);
+  
+  
+
   dht.begin();
   // Configuración de pines
   pinMode(trig, OUTPUT);
@@ -65,24 +112,29 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.print("ACE2 GRUPO 7");
+  //Iniciamos la conexión a la red WiFi
+  InitWiFi();
+  //Colocamos la referencia del servidor y el puerto
+  client.setServer( server, 1883 );
+  client.setCallback(callback);
+  client.subscribe("F2G7"); 
+  lastSend = 0;
   delay(2000);  // Retraso de 2 segundos para salir del setup.
 }
+
+//==========================================================================================================
+//==========================================================================================================
+//==================================================== Loop ================================================
+//==========================================================================================================
+//==========================================================================================================
 
 void loop() {
   //digitalWrite(FAN, HIGH); //Encender de ventiladores
   //digitalWrite(FAN, LOW);  //Apagar de ventiladores 
-  /*String B = ".";
-  if(WIFI.available()){
-    char c = WIFI.read();
-    Serial.print(c);
-  }
-  if(Serial.available()){
-    char c = Serial.read();
-    WIFI.print(c);
-  }*/
+  
 
   lcd.clear();  // Limpiamos el LCD.
-  lcd.print("Bienvenido.");
+  lcd.print("ENVIANDO DATOS");
   //digitalWrite(trig, LOW); //para que lea algo y lo estabilicemos desde el inicio.
 
   // Variables de almacenamiento para la lecturas de los sensores
@@ -236,9 +288,164 @@ void loop() {
     mostrarEeprom = false;
     delay(2000);
   }*/
+
+  //Validamos si el modulo WiFi aun esta conectado a la red
+    status = WiFi.status();
+    if(status != WL_CONNECTED) {
+        //Si falla la conexión, reconectamos el modulo
+        reconnectWifi();
+    }
+
+    //Validamos si esta la conexión del servidor
+    if(!client.connected() ) {
+        //Si falla reintentamos la conexión
+        client.subscribe("F2G7");
+        reconnectClient();
+    }
+
+    if (millis() - lastSend > 2000 ) {
+    // Leer el estado del ventilador
+    int estadoVentilador = digitalRead(FAN);
+    
+    // Verificar cada valor antes de concatenarlo en la cadena payload
+    String payload = String(d ? d : 0) + "," +
+                    String(lum_data ? lum_data : 0) + "," +
+                    String(raw_data ? raw_data : 0) + "," +
+                    String(temp ? temp : 0) + "," +
+                    String(humedad ? humedad : 0) + "," +
+                    String(estadoVentilador ? estadoVentilador : 0);
+
+    // Publicar el payload en el topic deseado
+    client.publish("F2G7", payload.c_str());
+
+    // Imprimir en el monitor serie para verificar
+    Serial.print("Datos publicados: ");
+    Serial.println(payload);
+
+    lastSend = millis();
+}
+
+    client.loop();
+    
+  
+
+
   delay(900);
 }
 
+//==========================================================================================================
+//==========================================================================================================
+//============================================ Funciones WiFi ==============================================
+//==========================================================================================================
+//==========================================================================================================
+
+//Función para recibir mensajes desde el broker
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Mensaje recibido [");
+  Serial.print(topic);
+  Serial.print("] ");
+
+  char payload_string[length + 1];
+  
+  int resultI;
+
+  memcpy(payload_string, payload, length);
+  payload_string[length] = '\0';
+  resultI = atoi(payload_string);
+  
+  var = resultI;
+
+  resultS = "";
+  
+  for (int i=0;i<length;i++) {
+    resultS= resultS + (char)payload[i];
+     Serial.println(resultS);
+  }
+
+}
+
+void sendDataTopic() {
+    
+    
+    // Verificar cada valor antes de concatenarlo en la cadena payload
+    String payload = String("A");
+
+    // Publicar el payload en el topic deseado
+    client.publish("F2G7", payload.c_str());
+
+    // Imprimir en el monitor serie para verificar
+    Serial.print("Datos publicados: ");
+    Serial.println(payload);
+
+}
+
+
+//Inicializamos la conexión a la red wifi
+void InitWiFi()
+{
+    //Inicializamos el puerto serial
+    soft.begin(9600);
+    //Iniciamos la conexión wifi
+    WiFi.init(&soft);
+    //Verificamos si se pudo realizar la conexión al wifi
+    //si obtenemos un error, lo mostramos por log y denememos el programa
+    if (WiFi.status() == WL_NO_SHIELD) {
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.println("Wifi no presente");
+        while (true);
+    }
+    reconnectWifi();
+}
+
+void reconnectWifi() {
+    Serial.println("Iniciar conección a la red WIFI");
+    while(status != WL_CONNECTED) {
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Conectando WIFI ");
+        Serial.print("Conectando WIFI: ");
+        Serial.println(WIFI_AP);
+        //Conectar a red WPA/WPA2
+        status = WiFi.begin(WIFI_AP, WIFI_PASSWORD);
+        delay(1000);
+    }
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("WIFI CONECTADO");
+    Serial.println("WIFI CONECTADO");
+}
+
+void reconnectClient() {
+    //Creamos un loop en donde intentamos hacer la conexión
+    while(!client.connected()) {
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Reconectando");
+        Serial.println(server);
+        delay( 1000 );
+        //Creamos una nueva cadena de conexión para el servidor
+        //e intentamos realizar la conexión nueva
+        //si requiere usuario y contraseña la enviamos connect(clientId, username, password)
+        String clientId = "ESP8266Client-" + String(random(0xffff), HEX);
+        if(client.connect(clientId.c_str())) {
+          Serial.println("[REALIZADO]");
+        } else {
+            Serial.print( "[ERROR] [ rc = " );
+            Serial.print( client.state() );
+            Serial.println( " : reintentando en 5 segundos]" );
+            delay( 5000 );
+        }
+    }
+}
+
+
+
+//==========================================================================================================
+//==========================================================================================================
+//=================================================== EEPROM ================================================
+//==========================================================================================================
+//==========================================================================================================
 
 
 void guardarDatos(float dist_val, float lum_val, float co2_val, float temp_val, float hum_val) {
@@ -276,3 +483,10 @@ void estado_mostrarEeprom() {
   mostrarEeprom = true;
   delay(50);
 }
+
+
+//==========================================================================================================
+//==========================================================================================================
+//===================================================== FIN ================================================
+//==========================================================================================================
+//==========================================================================================================
