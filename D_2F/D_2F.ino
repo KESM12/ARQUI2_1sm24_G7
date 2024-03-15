@@ -3,6 +3,8 @@
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
 #include <SoftwareSerial.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
 
 //SoftwareSerial WIFI(19, 18); //TX | TX
 
@@ -43,8 +45,8 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 void setup() {
   //Inicializaciones de los dispositivos.
-  Serial.begin(115200);
-  //WIFI.begin(115200);
+  Serial.begin(9600);
+  //WIFI.begin(9600);
   dht.begin();
   // Configuración de pines
   pinMode(trig, OUTPUT);
@@ -69,6 +71,15 @@ void setup() {
 void loop() {
   //digitalWrite(FAN, HIGH); //Encender de ventiladores
   //digitalWrite(FAN, LOW);  //Apagar de ventiladores 
+  /*String B = ".";
+  if(WIFI.available()){
+    char c = WIFI.read();
+    Serial.print(c);
+  }
+  if(Serial.available()){
+    char c = Serial.read();
+    WIFI.print(c);
+  }*/
 
   lcd.clear();  // Limpiamos el LCD.
   lcd.print("Bienvenido.");
@@ -126,6 +137,7 @@ void loop() {
 
   // Mostrar los datos según corresponda
   if (mostrarTemperatura) {
+    digitalWrite(FAN, HIGH); //Encender de ventiladores
     // Mostrar temperatura y humedad
     lcd.setCursor(0, 0);
     lcd.print("HUM:");
@@ -140,6 +152,7 @@ void loop() {
     delay(2000);
     mostrarTemperatura = false;
   } else if (mostrarLuminosidad) {
+    digitalWrite(FAN, LOW); //Encender de ventiladores
     // Mostrar luminosidad
     lcd.setCursor(0, 0);
     lcd.print("LUM:");
