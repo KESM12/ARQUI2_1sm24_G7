@@ -3,8 +3,17 @@
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
 #include <SoftwareSerial.h>
+#include <WiFiEsp.h>
+#include <WiFiEspClient.h>
+#include <PubSubClient.h>
 
-//SoftwareSerial WIFI(19, 18); //TX | TX
+
+
+//==========================================================================================================
+//==========================================================================================================
+//============================================= Declaraciones F1 ===========================================
+//==========================================================================================================
+//==========================================================================================================
 
 const int TH11 = 13;  // Pin donde se encuentra conectado el sensor dht11 mide humedad y temperatura.
 const int trig = 12;  // Pin del ultrasonico.
@@ -40,11 +49,19 @@ bool calDistancia(int trig, int echo);
 // DEFINICIONES
 DHT dht(TH11, DHT11);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+SoftwareSerial mySerial(8, 10);
+
+//==========================================================================================================
+//==========================================================================================================
+//=================================================== Setup ================================================
+//==========================================================================================================
+//==========================================================================================================
+
 
 void setup() {
   //Inicializaciones de los dispositivos.
-  Serial.begin(115200);
-  //WIFI.begin(115200);
+  Serial.begin(9600);
+  mySerial.begin(9600);  
   dht.begin();
   // Configuración de pines
   pinMode(trig, OUTPUT);
@@ -63,15 +80,63 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.print("ACE2 GRUPO 7");
+  
   delay(2000);  // Retraso de 2 segundos para salir del setup.
 }
 
+//==========================================================================================================
+//==========================================================================================================
+//==================================================== Loop ================================================
+//==========================================================================================================
+//==========================================================================================================
+
 void loop() {
-  //digitalWrite(FAN, HIGH); //Encender de ventiladores
-  //digitalWrite(FAN, LOW);  //Apagar de ventiladores 
+  
+  //Acciones realizadas por petición MQTT
+  if (mySerial.available() > 0) {
+      String receivedData = mySerial.readString();
+      receivedData.trim();  // Elimina espacios en blanco al principio y al final
+      
+      if (receivedData.equals("0")) {
+          digitalWrite(FAN, LOW);
+          Serial.println("Apagando el ventilador");
+      } else if (receivedData.equals("1")) {
+          digitalWrite(FAN, HIGH);
+          Serial.println("Encendiendo el ventilador");
+      } else if (receivedData.equals("2")) {
+          // Variables de almacenamiento para las lecturas de los sensores
+          float humedad = dht.readHumidity();
+          float temp = dht.readTemperature();
+          int raw_data = analogRead(A0);
+          int lum_data = analogRead(A1);
+          long t;
+          long d;
+
+          digitalWrite(trig, HIGH);
+          delayMicroseconds(10);
+          digitalWrite(trig, LOW);
+
+          t = pulseIn(echo, HIGH);
+          d = t / 59;
+
+          int estadoVentilador = digitalRead(FAN);
+          
+          // Construir la cadena de datos
+          String dataToSend = String(d ? d : 0) + "," +
+                              String(lum_data ? lum_data : 0) + "," +
+                              String(raw_data ? raw_data : 0) + "," +
+                              String(temp ? temp : 0) + "," +
+                              String(humedad ? humedad : 0) + "," +
+                              String(estadoVentilador ? estadoVentilador : 0);
+          
+          // Enviar los datos a través de la comunicación serial
+          Serial.println("Enviando datos: " + dataToSend);
+          mySerial.println(dataToSend);
+      }
+  }
 
   lcd.clear();  // Limpiamos el LCD.
-  lcd.print("Bienvenido.");
+  lcd.print("ENVIANDO DATOS");
   //digitalWrite(trig, LOW); //para que lea algo y lo estabilicemos desde el inicio.
 
   // Variables de almacenamiento para la lecturas de los sensores
@@ -123,6 +188,8 @@ void loop() {
     mostrarProximidad = true;
     delay(50);
   }
+
+  
 
   // Mostrar los datos según corresponda
   if (mostrarTemperatura) {
@@ -223,9 +290,25 @@ void loop() {
     mostrarEeprom = false;
     delay(2000);
   }*/
+
+  
+   
+
+
+
+
   delay(900);
 }
 
+
+
+
+
+//==========================================================================================================
+//==========================================================================================================
+//=================================================== EEPROM ================================================
+//==========================================================================================================
+//==========================================================================================================
 
 
 void guardarDatos(float dist_val, float lum_val, float co2_val, float temp_val, float hum_val) {
@@ -263,3 +346,10 @@ void estado_mostrarEeprom() {
   mostrarEeprom = true;
   delay(50);
 }
+
+
+//==========================================================================================================
+//==========================================================================================================
+//===================================================== FIN ================================================
+//==========================================================================================================
+//==========================================================================================================
