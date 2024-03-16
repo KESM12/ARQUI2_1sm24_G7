@@ -189,6 +189,8 @@ void loop() {
     delay(50);
   }
 
+  
+
   // Mostrar los datos según corresponda
   if (mostrarTemperatura) {
     // Mostrar temperatura y humedad
@@ -292,9 +294,7 @@ void loop() {
   
    
 
-    
-    
-  
+
 
 
   delay(900);

@@ -1,65 +1,155 @@
-/*
- Basic ESP8266 MQTT example
- This sketch demonstrates the capabilities of the pubsub library in combination
- with the ESP8266 board/library.
- It connects to an MQTT server then:
-  - publishes "hello world" to the topic "outTopic" every two seconds
-  - subscribes to the topic "inTopic", printing out any messages
-    it receives. NB - it assumes the received payloads are strings not binary
-  - If the first character of the topic "inTopic" is an 1, switch ON the ESP Led,
-    else switch it off
- It will reconnect to the server if the connection is lost using a blocking
- reconnect function. See the 'mqtt_reconnect_nonblocking' example for how to
- achieve the same result without blocking the main loop.
- To install the ESP8266 board, (using Arduino 1.6.4+):
-  - Add the following 3rd party board manager under "File -> Preferences -> Additional Boards Manager URLs":
-       http://arduino.esp8266.com/stable/package_esp8266com_index.json
-  - Open the "Tools -> Board -> Board Manager" and click install for the ESP8266"
-  - Select your ESP8266 in "Tools -> Board"
-*/
-
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include <time.h>
 
-// Update these with values suitable for your network.
+// WiFi credentials
+const char *ssid = "7u7";             // Replace with your WiFi name
+const char *password = "A8151623a2";   // Replace with your WiFi password
 
-const char* ssid = "7u7";
-const char* password = "A8151623a2";
-const char* mqtt_server = "broker.emqx.io";
+// MQTT Broker settings
+const int mqtt_port = 8883;  // MQTT port (TLS)
+const char *mqtt_broker = "ebc4ebe4.ala.us-east-1.emqxsl.com";  // EMQX broker endpoint
+const char *mqtt_topic = "project2";     // MQTT topic
+const char *mqtt_username = "edwin";  // MQTT username for authentication
+const char *mqtt_password = "edwin";  // MQTT password for authentication
 
-WiFiClient espClient;
-PubSubClient client(espClient);
-unsigned long lastMsg = 0;
-#define MSG_BUFFER_SIZE	(50)
-char msg[MSG_BUFFER_SIZE];
-int value = 0;
+// NTP Server settings
+const char *ntp_server = "pool.ntp.org";     // Default NTP server
+// const char* ntp_server = "cn.pool.ntp.org"; // Recommended NTP server for users in China
+const long gmt_offset_sec = 0;            // GMT offset in seconds (adjust for your time zone)
+const int daylight_offset_sec = 0;        // Daylight saving time offset in seconds
 
-void setup_wifi() {
+// WiFi and MQTT client initialization
+BearSSL::WiFiClientSecure espClient;
+PubSubClient mqtt_client(espClient);
 
-  delay(10);
-  // We start by connecting to a WiFi network
-  Serial.println();
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
+// SSL certificate for MQTT broker
+// Load DigiCert Global Root G2, which is used by EMQX Public Broker: broker.emqx.io
+static const char ca_cert[]
+PROGMEM = R"EOF(
+-----BEGIN CERTIFICATE-----
+MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD
+QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT
+MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j
+b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG
+9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB
+CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97
+nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt
+43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P
+T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4
+gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO
+BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR
+TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw
+DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr
+hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg
+06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF
+PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls
+YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk
+CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=
+-----END CERTIFICATE-----
+)EOF";
 
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+// Load DigiCert Global Root CA ca_cert, which is used by EMQX Cloud Serverless Deployment
+/*
+static const char ca_cert[] PROGMEM = R"EOF(
+-----BEGIN CERTIFICATE-----
+MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh
+MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
+d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD
+QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT
+MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j
+b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG
+9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB
+CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97
+nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt
+43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P
+T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4
+gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO
+BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR
+TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw
+DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr
+hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg
+06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF
+PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls
+YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk
+CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=
+-----END CERTIFICATE-----
+)EOF";
+*/
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
 
-  randomSeed(micros());
+// Function declarations
+void connectToWiFi();
 
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+void connectToMQTT();
+
+void syncTime();
+
+void mqttCallback(char *topic, byte *payload, unsigned int length);
+
+
+void setup() {
+    Serial.begin(9600);
+    connectToWiFi();
+    syncTime();  // X.509 validation requires synchronization time
+    mqtt_client.setServer(mqtt_broker, mqtt_port);
+    mqtt_client.setCallback(mqttCallback);
+    connectToMQTT();
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
- /* Serial.print("Message arrived [");
+void connectToWiFi() {
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(1000);
+        Serial.println("Connecting to WiFi...");
+    }
+    Serial.println("Connected to WiFi");
+}
+
+void syncTime() {
+    configTime(gmt_offset_sec, daylight_offset_sec, ntp_server);
+    Serial.print("Waiting for NTP time sync: ");
+    while (time(nullptr) < 8 * 3600 * 2) {
+        delay(1000);
+        Serial.print(".");
+    }
+    Serial.println("Time synchronized");
+    struct tm timeinfo;
+    if (getLocalTime(&timeinfo)) {
+        Serial.print("Current time: ");
+        Serial.println(asctime(&timeinfo));
+    } else {
+        Serial.println("Failed to obtain local time");
+    }
+}
+
+void connectToMQTT() {
+    BearSSL::X509List serverTrustedCA(ca_cert);
+    espClient.setTrustAnchors(&serverTrustedCA);
+    while (!mqtt_client.connected()) {
+        String client_id = "esp8266-client-" + String(WiFi.macAddress());
+        Serial.printf("Connecting to MQTT Broker as %s.....\n", client_id.c_str());
+        if (mqtt_client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
+            Serial.println("Connected to MQTT broker");
+            mqtt_client.subscribe(mqtt_topic);
+            // Publish message upon successful connection
+            mqtt_client.publish(mqtt_topic, "Hi EMQX I'm ESP8266 ^^");
+        } else {
+            char err_buf[128];
+            espClient.getLastSSLError(err_buf, sizeof(err_buf));
+            Serial.print("Failed to connect to MQTT broker, rc=");
+            Serial.println(mqtt_client.state());
+            Serial.print("SSL error: ");
+            Serial.println(err_buf);
+            delay(5000);
+        }
+    }
+}
+
+void mqttCallback(char *topic, byte *payload, unsigned int length) {
+     /* Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");*/
   for (int i = 0; i < length; i++) {
@@ -70,47 +160,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 }
 
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Create a random client ID
-    String clientId = "ESP8266Client-";
-    clientId += String(random(0xffff), HEX);
-    // Attempt to connect
-    if (client.connect(clientId.c_str())) {
-      Serial.println("connected");
-      // Once connected, publish an announcement...
-      client.publish("outTopic", "hello world");
-      // ... and resubscribe
-      client.subscribe("F2G7");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
-}
-
-void setup() {
-  pinMode(BUILTIN_LED, OUTPUT);     // Initialize the BUILTIN_LED pin as an output
-  Serial.begin(9600);
-  setup_wifi();
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
-}
 
 void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-  
-  // Leer datos de la comunicación serial y enviarlos por MQTT
+    if (!mqtt_client.connected()) {
+        connectToMQTT();
+    }
+    mqtt_client.loop();
+    // Leer datos de la comunicación serial y enviarlos por MQTT
   while (Serial.available() > 0) {
     String serialData = Serial.readStringUntil('\n'); // Leer hasta encontrar un salto de línea
-    client.publish("F2G7", serialData.c_str()); // Convertir a const char* y enviar
+    mqtt_client.publish(mqtt_topic, serialData.c_str()); // Convertir a const char* y enviar
   }
 }
