@@ -4,6 +4,7 @@ defineProps({
   title: String,
   enable: Boolean,
   value: String,
+  size: String
 });
 defineEmits(["update"]);
 </script>
@@ -21,7 +22,7 @@ defineEmits(["update"]);
       />
     </div>
     <div class="text-center my-4">
-      <h2 class="text-4xl font-bold text-white">{{ value }}</h2>
+      <h2 :class="`${size} text-4xl font-bold text-white`">{{ value }}</h2>
     </div>
   </div>
 </template>
