@@ -24,7 +24,7 @@ const int MP = 5;     // Pin para el boton de mostrar proximidad
 const int MC = 4;     // Pin para el boton de mostrar co2
 const int GE = 3;     // Pin para el boton de guardar todos los datos en la eeprom
 const int ME = 2;     // Pin para el boton de mostrar los datos almacenados en la eeprom
-const int FAN = 9;    // Pin para el ventilador 
+const int FAN = 9;    // Pin para el ventilador
 
 //VARIABLES
 float distancia;
@@ -42,6 +42,7 @@ bool mostrarTemperatura = false;
 bool mostrarLuminosidad = false;
 bool mostrarCO2 = false;
 bool mostrarProximidad = false;
+
 volatile bool guardarEeprom = false;
 volatile bool mostrarEeprom = false;
 
@@ -61,7 +62,7 @@ SoftwareSerial mySerial(8, 10);
 void setup() {
   //Inicializaciones de los dispositivos.
   Serial.begin(9600);
-  mySerial.begin(9600);  
+  mySerial.begin(9600);
   dht.begin();
   // Configuración de pines
   pinMode(trig, OUTPUT);
@@ -72,7 +73,7 @@ void setup() {
   pinMode(MP, INPUT);
   pinMode(GE, INPUT);
   pinMode(ME, INPUT);
-  pinMode(FAN,  OUTPUT) ;
+  pinMode(FAN, OUTPUT);
   // Interrupciones
   attachInterrupt(digitalPinToInterrupt(GE), estado_guardarEeprom, FALLING);
   attachInterrupt(digitalPinToInterrupt(ME), estado_mostrarEeprom, FALLING);
@@ -80,7 +81,7 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.print("ACE2 GRUPO 7");
-  
+
   delay(2000);  // Retraso de 2 segundos para salir del setup.
 }
 
@@ -91,49 +92,18 @@ void setup() {
 //==========================================================================================================
 
 void loop() {
-  
-  //Acciones realizadas por petición MQTT
-  if (mySerial.available() > 0) {
-      String receivedData = mySerial.readString();
-      receivedData.trim();  // Elimina espacios en blanco al principio y al final
-      
-      if (receivedData.equals("0")) {
-          digitalWrite(FAN, LOW);
-          Serial.println("Apagando el ventilador");
-      } else if (receivedData.equals("1")) {
-          digitalWrite(FAN, HIGH);
-          Serial.println("Encendiendo el ventilador");
-      } else if (receivedData.equals("2")) {
-          // Variables de almacenamiento para las lecturas de los sensores
-          float humedad = dht.readHumidity();
-          float temp = dht.readTemperature();
-          int raw_data = analogRead(A0);
-          int lum_data = analogRead(A1);
-          long t;
-          long d;
-
-          digitalWrite(trig, HIGH);
-          delayMicroseconds(10);
-          digitalWrite(trig, LOW);
-
-          t = pulseIn(echo, HIGH);
-          d = t / 59;
-
-          int estadoVentilador = digitalRead(FAN);
-          
-          // Construir la cadena de datos
-          String dataToSend = String(d ? d : 0) + "," +
-                              String(lum_data ? lum_data : 0) + "," +
-                              String(raw_data ? raw_data : 0) + "," +
-                              String(temp ? temp : 0) + "," +
-                              String(humedad ? humedad : 0) + "," +
-                              String(estadoVentilador ? estadoVentilador : 0);
-          
-          // Enviar los datos a través de la comunicación serial
-          Serial.println("Enviando datos: " + dataToSend);
-          mySerial.println(dataToSend);
-      }
+  if (mySerial.available()) {
+    String receivedData = mySerial.readString();
+    receivedData.trim();  
+    Serial.println(receivedData);
   }
+
+  if (!mySerial.available()) {
+    enviarDatosSerial();
+  } else {
+    recibirSolicitudesMQTT();
+  }
+
 
   lcd.clear();  // Limpiamos el LCD.
   lcd.print("ENVIANDO DATOS");
@@ -158,7 +128,6 @@ void loop() {
   estadoBLA = digitalRead(LA);  // Lectura del botón para luminosidad
   estadoBMC = digitalRead(MC);  // Lectura del botón para CO2
   estadoBMP = digitalRead(MP);  // Lectura del botón para proximidad
-
 
   //If que valida el estado del sensor de temperatura y humedad
   if (isnan(humedad) || isnan(temp)) {  //si el sensor de humedad y temperatura falla mostrara el siguiente mensaje en la terminal.
@@ -189,7 +158,7 @@ void loop() {
     delay(50);
   }
 
-  
+
 
   // Mostrar los datos según corresponda
   if (mostrarTemperatura) {
@@ -234,7 +203,7 @@ void loop() {
     lcd.print(" cm");
     delay(2000);
     mostrarProximidad = false;
-  }/* else if (guardarEeprom) {
+  } /* else if (guardarEeprom) {
     //Guadar datos en la EEPROM.
     guardarDatos(d, lum_data, raw_data, temp, humedad);
     Serial.print("Datos almacenados en memoria.");
@@ -291,13 +260,90 @@ void loop() {
     delay(2000);
   }*/
 
-  
-   
-
-
-
-
   delay(900);
+}
+
+void enviarDatosSerial() {
+  // Variables de almacenamiento para la lecturas de los sensores
+  humedad = dht.readHumidity();  // Lectura de humedad
+  temp = dht.readTemperature();  // Lectura de
+  raw_data = analogRead(A0);     // Lectura de CO2
+  lum_data = analogRead(A1);     // Lectura de Luminosidad
+  long t;                        //timepo que demora en llegar el eco
+  long d;                        //distancia en centimetros
+
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);  //Enviamos un pulso de 10us
+  digitalWrite(trig, LOW);
+
+  t = pulseIn(echo, HIGH);  //obtenemos el ancho del pulso
+  d = t / 59;               // escalamos una distancia en cm.
+  int estadoVentilador = digitalRead(FAN);
+
+  // Construir la cadena de datos
+  String dataToSend = String(d ? d : 0) + "," + String(lum_data ? lum_data : 0) + "," + String(raw_data ? raw_data : 0) + "," + String(temp ? temp : 0) + "," + String(humedad ? humedad : 0) + "," + String(estadoVentilador ? estadoVentilador : 0);
+
+  // Enviar los datos a través de la comunicación serial
+  Serial.println("Enviando datos: " + dataToSend);
+  mySerial.println(dataToSend);
+}
+
+void recibirSolicitudesMQTT() {
+  // Variables de almacenamiento para la lecturas de los sensores
+  humedad = dht.readHumidity();  // Lectura de humedad
+  temp = dht.readTemperature();  // Lectura de
+  raw_data = analogRead(A0);     // Lectura de CO2
+  lum_data = analogRead(A1);     // Lectura de Luminosidad
+  long t;                        //timepo que demora en llegar el eco
+  long d;                        //distancia en centimetros
+
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);  //Enviamos un pulso de 10us
+  digitalWrite(trig, LOW);
+
+  t = pulseIn(echo, HIGH);  //obtenemos el ancho del pulso
+  d = t / 59;               // escalamos una distancia en cm.
+  //Acciones realizadas por petición MQTT
+  if (mySerial.available() > 0) {
+    String receivedData = mySerial.readString();
+    receivedData.trim();  // Elimina espacios en blanco al principio y al final
+
+    if (receivedData.equals("0")) {
+      digitalWrite(FAN, LOW);
+      Serial.println("Apagando el ventilador");
+    } else if (receivedData.equals("1")) {
+      digitalWrite(FAN, HIGH);
+      Serial.println("Encendiendo el ventilador");
+    } else if (receivedData.equals("3")) {
+      //Recuperar datos de la EEPROM.
+      Serial.print("Mostrando datos almacenados en memoria.");
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("MOSTRANDO");
+      lcd.setCursor(0, 1);
+      lcd.print("DATOS");
+      float dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada;
+      recuperarDatos(dist_almacenada, lum_almacenada, co2_almacenada, temp_almacenada, hum_almacenada);
+      // Construir la cadena de datos
+      String dataToSendM = "eeprom" + String(dist_almacenada ? dist_almacenada : 0) + "," + String(lum_almacenada ? lum_almacenada : 0) + "," + String(co2_almacenada ? co2_almacenada : 0) + "," + String(temp_almacenada ? temp_almacenada : 0) + "," + String(hum_almacenada ? hum_almacenada : 0);
+
+      // Enviar los datos a través de la comunicación serial
+      Serial.println("Enviando datos: " + dataToSendM);
+      mySerial.println(dataToSendM);
+
+      delay(1000);
+    } else if (receivedData.equals("4")) {
+      //Guadar datos en la EEPROM.
+      guardarDatos(d, lum_data, raw_data, temp, humedad);
+      Serial.print("Datos almacenados en memoria.");
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("GUARDANDO");
+      lcd.setCursor(0, 1);
+      lcd.print("DATOS");
+      delay(1000);
+    }
+  }
 }
 
 
