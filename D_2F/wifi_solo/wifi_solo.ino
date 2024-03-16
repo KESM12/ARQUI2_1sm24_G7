@@ -3,12 +3,9 @@
 #include <PubSubClient.h>
 #include "SoftwareSerial.h"
 
-//Conexión a la red wifi: nombre de la red y contraseña
-#define WIFI_AP "7u7"
-#define WIFI_PASSWORD "A8151623a2"
-
-//Nombre o IP del servidor mosquitto
-char *server = "broker.emqx.io";
+const char* ssid = "7u7";
+const char* password = "A8151623a2";
+const char* mqtt_server = "broker.emqx.io";
 
 //Inicializamos el objeto de cliente esp
 WiFiEspClient espClient;
@@ -25,156 +22,113 @@ SoftwareSerial soft(8, 10);
 //PIN para el ventilador
 int fanPin = 9;
 
-//Contador para el envio de datos
-unsigned long lastSend;
-
-int status = WL_IDLE_STATUS;
-
-String resultS = "";
-int var = 0;
+unsigned long lastMsg = 0;
+#define MSG_BUFFER_SIZE	(50)
+char msg[MSG_BUFFER_SIZE];
+int value = 0;
 
 
-//Función para recibir mensajes desde el broker
 void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Mensaje recibido [");
+  Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
 
-  char payload_string[length + 1];
-  
-  int resultI;
-
-  memcpy(payload_string, payload, length);
-  payload_string[length] = '\0';
-  resultI = atoi(payload_string);
-  
-  var = resultI;
-
-  resultS = "";
-  
-  for (int i=0;i<length;i++) {
-    resultS= resultS + (char)payload[i];
-     Serial.println(resultS);
+  // Switch on the LED if an 1 was received as first character
+  if ((char)payload[0] == '1') {
+    digitalWrite(fanPin, LOW);   // Turn the LED on (Note that LOW is the voltage level
+    // but actually the LED is on; this is because
+    // it is active low on the ESP-01)
+  } else {
+    digitalWrite(fanPin, HIGH);  // Turn the LED off by making the voltage HIGH
   }
 
- 
-  
-  // Control del ventilador basado en el mensaje recibido
-  if (strcmp(topic, "ENTRADA") == 0) {
-    if (var == 1) {
-      // Encender el ventilador
-      digitalWrite(fanPin, HIGH);
+}
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Create a random client ID
+    String clientId = "ESP8266Client-";
+    clientId += String(random(0xffff), HEX);
+    // Attempt to connect
+    if (client.connect(clientId.c_str())) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      client.publish("outTopic", "hello world");
+      // ... and resubscribe
+      client.subscribe("F2G7");
     } else {
-      // Apagar el ventilador
-      digitalWrite(fanPin, LOW);
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
     }
   }
 }
-
 
 
 void setup() {
-    //Inicializamos la comunicación serial para el log
-    Serial.begin(9600);
     
-    // Pin Mode 
-    pinMode(fanPin, OUTPUT);
-
-    //Iniciamos la conexión a la red WiFi
-    InitWiFi();
-    //Colocamos la referencia del servidor y el puerto
-    client.setServer( server, 1883 );
-    client.setCallback(callback);
-    client.subscribe("ENTRADAINO"); 
-    lastSend = 0;
+  // Pin Mode 
+  pinMode(fanPin, OUTPUT);
+  Serial.begin(9600);
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
 }
 
 void loop() {
-    //Validamos si el modulo WiFi aun esta conectado a la red
-    status = WiFi.status();
-    if(status != WL_CONNECTED) {
-        //Si falla la conexión, reconectamos el modulo
-        reconnectWifi();
-    }
 
-    //Validamos si esta la conexión del servidor
-    if(!client.connected() ) {
-        //Si falla reintentamos la conexión
-        client.subscribe("ENTRADA");
-        reconnectClient();
-    }
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
 
-    //Creamos un contador para enviar la data cada 2 segundos
-    if(millis() - lastSend > 2000 ) {
-        sendDataTopic();
-        lastSend = millis();
-    }
-
-    client.loop();
-    
-     if(var == 0){
-    digitalWrite(fanPin, LOW);
-    } else if (var == 1) {
-      digitalWrite(fanPin, HIGH);
-    }
-}
-
-void sendDataTopic() {
-    Serial.println("Enviando Datos");
-    String payload = "  PTM NO SALE COMPI 2 ";
-    
-
-    // Publicar el payload como texto plano en el topic "FAN/0"
-    client.publish("FAN", payload.c_str());
-
-    Serial.println(payload);
+  unsigned long now = millis();
+  if (now - lastMsg > 2000) {
+    lastMsg = now;
+    ++value;
+    snprintf (msg, MSG_BUFFER_SIZE, "hello world #%ld", value);
+    Serial.print("Publish message: ");
+    Serial.println(msg);
+    client.publish("F2G7", msg);
+  }
 }
 
 
-//Inicializamos la conexión a la red wifi
-void InitWiFi()
-{
-    //Inicializamos el puerto serial
-    soft.begin(9600);
-    //Iniciamos la conexión wifi
-    WiFi.init(&soft);
-    //Verificamos si se pudo realizar la conexión al wifi
-    //si obtenemos un error, lo mostramos por log y denememos el programa
-    if (WiFi.status() == WL_NO_SHIELD) {
-        Serial.println("El modulo WiFi no esta presente");
-        while (true);
-    }
-    reconnectWifi();
+
+
+void setup_wifi() {
+
+  delay(10);
+  //Inicializamos el puerto serial
+  soft.begin(9600);
+  //Iniciamos la conexión wifi
+  WiFi.init(&soft);
+  // We start by connecting to a WiFi network
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  randomSeed(micros());
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
 }
 
-void reconnectWifi() {
-    Serial.println("Iniciar conección a la red WIFI");
-    while(status != WL_CONNECTED) {
-        Serial.print("Intentando conectarse a WPA SSID: ");
-        Serial.println(WIFI_AP);
-        //Conectar a red WPA/WPA2
-        status = WiFi.begin(WIFI_AP, WIFI_PASSWORD);
-        delay(500);
-    }
-    Serial.println("Conectado a la red WIFI");
-}
-
-void reconnectClient() {
-    //Creamos un loop en donde intentamos hacer la conexión
-    while(!client.connected()) {
-        Serial.print("Conectando a: ");
-        Serial.println(server);
-        //Creamos una nueva cadena de conexión para el servidor
-        //e intentamos realizar la conexión nueva
-        //si requiere usuario y contraseña la enviamos connect(clientId, username, password)
-        String clientId = "ESP8266Client-" + String(random(0xffff), HEX);
-        if(client.connect(clientId.c_str())) {
-            Serial.println("[DONE]");
-        } else {
-            Serial.print( "[FAILED] [ rc = " );
-            Serial.print( client.state() );
-            Serial.println( " : reintentando en 5 segundos]" );
-            delay( 5000 );
-        }
-    }
-}
