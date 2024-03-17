@@ -46,6 +46,9 @@ bool mostrarProximidad = false;
 volatile bool guardarEeprom = false;
 volatile bool mostrarEeprom = false;
 
+unsigned long tiempoAnterior = 0;
+unsigned long intervalo = 1000;  // 1000 milisegundos = 1 segundo
+
 bool calDistancia(int trig, int echo);
 // DEFINICIONES
 DHT dht(TH11, DHT11);
@@ -80,7 +83,7 @@ void setup() {
   // Configuracion de la LCD.
   lcd.init();
   lcd.backlight();
-  lcd.print("ACE2 GRUPO 7");
+  lcd.print(" ACE2 GRUPO 7");
 
   delay(2000);  // Retraso de 2 segundos para salir del setup.
 }
@@ -92,21 +95,27 @@ void setup() {
 //==========================================================================================================
 
 void loop() {
-  if (mySerial.available()) {
-    String receivedData = mySerial.readString();
-    receivedData.trim();  
-    Serial.println(receivedData);
-  }
 
-  if (!mySerial.available()) {
-    enviarDatosSerial();
-  } else {
-    recibirSolicitudesMQTT();
-  }
+  recibirSolicitudesMQTT();
 
+  /*
+  // Verificar si ha pasado el intervalo de 1 segundo
+  unsigned long tiempoActual = millis();
+  if (tiempoActual - tiempoAnterior >= intervalo) {
+    // Verificar si hay datos disponibles en mySerial
+    if (mySerial.available()) {
+      // Procesar los datos de mySerial
+      recibirSolicitudesMQTT();
+    } else {
+      // Si no hay datos disponibles, enviar datos por la comunicación serial
+      enviarDatosSerial();
+    }
+    // Actualizar el tiempo anterior al actual
+    tiempoAnterior = tiempoActual;
+  }*/
 
   lcd.clear();  // Limpiamos el LCD.
-  lcd.print("ENVIANDO DATOS");
+  lcd.print(" ENVIANDO DATOS");
   //digitalWrite(trig, LOW); //para que lea algo y lo estabilicemos desde el inicio.
 
   // Variables de almacenamiento para la lecturas de los sensores
@@ -259,9 +268,10 @@ void loop() {
     mostrarEeprom = false;
     delay(2000);
   }*/
-
   delay(900);
 }
+// Variable para almacenar el último dato enviado
+String ultimoDatoEnviado;
 
 void enviarDatosSerial() {
   // Variables de almacenamiento para la lecturas de los sensores
@@ -284,8 +294,17 @@ void enviarDatosSerial() {
   String dataToSend = String(d ? d : 0) + "," + String(lum_data ? lum_data : 0) + "," + String(raw_data ? raw_data : 0) + "," + String(temp ? temp : 0) + "," + String(humedad ? humedad : 0) + "," + String(estadoVentilador ? estadoVentilador : 0);
 
   // Enviar los datos a través de la comunicación serial
-  Serial.println("Enviando datos: " + dataToSend);
-  mySerial.println(dataToSend);
+  //Serial.println("Enviando datos: " + dataToSend);
+  //mySerial.println(dataToSend);
+
+  // Verificar si el nuevo dato es diferente al último enviado
+  if (dataToSend != ultimoDatoEnviado) {
+    // Enviar los datos solo si son diferentes
+    mySerial.println(dataToSend);
+    // Actualizar el valor del último dato enviado
+    ultimoDatoEnviado = dataToSend;
+    delay(50);
+  }
 }
 
 void recibirSolicitudesMQTT() {
@@ -304,16 +323,27 @@ void recibirSolicitudesMQTT() {
   t = pulseIn(echo, HIGH);  //obtenemos el ancho del pulso
   d = t / 59;               // escalamos una distancia en cm.
   //Acciones realizadas por petición MQTT
+  // Actualizar el último dato enviado para filtrar duplicados
+
   if (mySerial.available() > 0) {
     String receivedData = mySerial.readString();
     receivedData.trim();  // Elimina espacios en blanco al principio y al final
+    ultimoDatoEnviado = receivedData;
+    Serial.println(receivedData);
 
     if (receivedData.equals("0")) {
       digitalWrite(FAN, LOW);
       Serial.println("Apagando el ventilador");
+      enviarDatosSerial();
+      delay(100);
     } else if (receivedData.equals("1")) {
       digitalWrite(FAN, HIGH);
       Serial.println("Encendiendo el ventilador");
+      enviarDatosSerial();
+      delay(100);
+    } else if (receivedData.equals("2")) {
+      enviarDatosSerial();
+      delay(100);
     } else if (receivedData.equals("3")) {
       //Recuperar datos de la EEPROM.
       Serial.print("Mostrando datos almacenados en memoria.");
@@ -330,7 +360,7 @@ void recibirSolicitudesMQTT() {
       // Enviar los datos a través de la comunicación serial
       Serial.println("Enviando datos: " + dataToSendM);
       mySerial.println(dataToSendM);
-
+      enviarDatosSerial();
       delay(1000);
     } else if (receivedData.equals("4")) {
       //Guadar datos en la EEPROM.
@@ -341,6 +371,7 @@ void recibirSolicitudesMQTT() {
       lcd.print("GUARDANDO");
       lcd.setCursor(0, 1);
       lcd.print("DATOS");
+      enviarDatosSerial();
       delay(1000);
     }
   }

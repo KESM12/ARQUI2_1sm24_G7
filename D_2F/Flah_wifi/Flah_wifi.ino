@@ -9,15 +9,17 @@ const char *password = "A8151623a2";  // Replace with your WiFi password
 // MQTT Broker settings
 const int mqtt_port = 8883;                                     // MQTT port (TLS)
 const char *mqtt_broker = "ebc4ebe4.ala.us-east-1.emqxsl.com";  // EMQX broker endpoint
-const char *mqtt_topic = "project2";                            // MQTT topic
+const char *mqtt_topic = "project2g7";                          // MQTT topic
 const char *mqtt_username = "edwin";                            // MQTT username for authentication
 const char *mqtt_password = "edwin";                            // MQTT password for authentication
 
 // NTP Server settings
-const char *ntp_server = "pool.ntp.org";  // Default NTP server
-// const char* ntp_server = "cn.pool.ntp.org"; // Recommended NTP server for users in China
-const long gmt_offset_sec = 0;      // GMT offset in seconds (adjust for your time zone)
-const int daylight_offset_sec = 0;  // Daylight saving time offset in seconds
+const char *ntp_server = "pool.ntp.org";  // Default NTP server// const char* ntp_server = "cn.pool.ntp.org"; // Recommended NTP server for users in China
+const long gmt_offset_sec = 0;            // GMT offset in seconds (adjust for your time zone)
+const int daylight_offset_sec = 0;        // Daylight saving time offset in seconds
+
+// Variable para almacenar el último mensaje enviado por MQTT
+String ultimoMensajeEnviado = "";
 
 // WiFi and MQTT client initialization
 BearSSL::WiFiClientSecure espClient;
@@ -102,9 +104,9 @@ void connectToWiFi() {
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("CONECTANDO A WIFI");
+    Serial.println("Conectando al WiFi...");
   }
-  Serial.println("WIFI CONECTADO");
+  Serial.println("WiFi Conectado");
 }
 
 void syncTime() {
@@ -130,27 +132,29 @@ void connectToMQTT() {
   while (!mqtt_client.connected()) {
     if (WiFi.status() == WL_CONNECTED) {
       String client_id = "esp8266-client-" + String(WiFi.macAddress());
-      Serial.printf("CONECTANDO A MQTT BROKER COMO %s.....\n", client_id.c_str());
+      Serial.printf("Conectando a MQTT Broker como %s.....\n", client_id.c_str());
       if (mqtt_client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
-        Serial.println("CONECTANDO A MQTT BROKER");
+        Serial.println("MQTT broker conectado");
         mqtt_client.subscribe(mqtt_topic);
         // Publish message upon successful connection
         mqtt_client.publish(mqtt_topic, "Hi EMQX I'm ESP8266 ^^");
       } else {
         char err_buf[128];
         espClient.getLastSSLError(err_buf, sizeof(err_buf));
-        Serial.print("ERROR AL CONECTAR A MQTT BROKER, rc=");
+        Serial.print("Error al conectar MQTT broker, rc=");
         Serial.println(mqtt_client.state());
-        Serial.print("SSL ERROR: ");
+        Serial.print("Error en SSL: ");
         Serial.println(err_buf);
         delay(5000);
       }
     }
+    connectToWiFi();
     break;
   }
 }
 
 void mqttCallback(char *topic, byte *payload, unsigned int length) {
+
   for (int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
   }
@@ -162,20 +166,18 @@ void loop() {
   if (!mqtt_client.connected()) {
     connectToMQTT();
   }
-
-  if (WiFi.status() != WL_CONNECTED) {
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(1000);
-      Serial.println("RECONECTANDO A WIFI");
-    }
-    Serial.println("WIFI CONECTADO");
-  }
-
   mqtt_client.loop();
   // Leer datos de la comunicación serial y enviarlos por MQTT
   while (Serial.available() > 0) {
-    String serialData = Serial.readStringUntil('\n');     // Leer hasta encontrar un salto de línea
-    mqtt_client.publish(mqtt_topic, serialData.c_str());  // Convertir a const char* y enviar
+    String serialData = Serial.readStringUntil('\n');  // Leer hasta encontrar un salto de línea
+                                                       // Verificar si el mensaje recibido es diferente al último mensaje enviado
+
+    // Verificar si el mensaje recibido es diferente al último mensaje enviado
+    if (serialData != ultimoMensajeEnviado) {
+      // Enviar el mensaje por MQTT solo si es diferente
+      mqtt_client.publish(mqtt_topic, serialData.c_str());  // Convertir a const char* y enviar
+      // Actualizar el último mensaje enviado
+      ultimoMensajeEnviado = serialData;
+    }
   }
 }
