@@ -15,7 +15,9 @@
 //==========================================================================================================
 //==========================================================================================================
 
-//Servo Servo1;
+Servo Servo1; // Crea un objeto de clase "Servo" llamado "Servo1"
+int potpin = 0; // Pin analógico para el potenciómetro
+int val; // Variable para el valor leído del potenciómetro
 
 const int TH11 = 13;  // Pin donde se encuentra conectado el sensor dht11 mide humedad y temperatura.
 const int trig = 12;  // Pin del ultrasonico.
@@ -86,8 +88,8 @@ void setup() {
   pinMode(RELE1, OUTPUT);
   pinMode(RELE2, OUTPUT);
   pinMode(RELE2, OUTPUT);
-  //Servo1.attach(A2);
-  //Servo1.write(0);
+  Servo1.attach(A2); // Adjunta el objeto al pin A2
+  Servo1.write(0);
   // Interrupciones
   attachInterrupt(digitalPinToInterrupt(GE), estado_guardarEeprom, FALLING);
   attachInterrupt(digitalPinToInterrupt(ME), estado_mostrarEeprom, FALLING);
@@ -405,6 +407,21 @@ void recibirSolicitudesMQTT() {
         digitalWrite(RELE1, LOW);
         Serial.println("Apagando el foco");
         foco = false;
+      }
+      delay(100);
+    } else if (receivedData.equals("6")) {
+    
+      if (puerta == false){
+        Servo1.write(90);
+
+        Serial.println("Abriendo la puerta");
+        enviarDatosSerial();
+        puerta = true;
+      } else {
+        Servo1.write(0);
+        enviarDatosSerial();
+        Serial.println("Cerrando la puerta");
+        puerta = false;
       }
       delay(100);
     } 
