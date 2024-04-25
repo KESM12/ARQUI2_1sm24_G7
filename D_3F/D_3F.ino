@@ -6,7 +6,7 @@
 #include <WiFiEsp.h>
 #include <WiFiEspClient.h>
 #include <PubSubClient.h>
-
+#include <Servo.h>
 
 
 //==========================================================================================================
@@ -15,6 +15,8 @@
 //==========================================================================================================
 //==========================================================================================================
 
+//Servo Servo1;
+
 const int TH11 = 13;  // Pin donde se encuentra conectado el sensor dht11 mide humedad y temperatura.
 const int trig = 12;  // Pin del ultrasonico.
 const int echo = 11;  // Pin del ultrasonico.
@@ -22,9 +24,11 @@ const int MT = 7;     // Pin para el boton de mostrar temperatura y humedad
 const int LA = 6;     // Pin para el boton de mostrar luminocidad
 const int MP = 5;     // Pin para el boton de mostrar proximidad
 const int MC = 4;     // Pin para el boton de mostrar co2
-const int GE = 3;     // Pin para el boton de guardar todos los datos en la eeprom
-const int ME = 2;     // Pin para el boton de mostrar los datos almacenados en la eeprom
+const int RELE1 = 3;   
+const int RELE2 = 2;      
 const int FAN = 9;    // Pin para el ventilador
+int GE;
+int ME;
 
 //VARIABLES
 float distancia;
@@ -42,6 +46,10 @@ bool mostrarTemperatura = false;
 bool mostrarLuminosidad = false;
 bool mostrarCO2 = false;
 bool mostrarProximidad = false;
+bool velocidad = false;
+bool foco = false;
+bool puerta = false;
+
 
 volatile bool guardarEeprom = false;
 volatile bool mostrarEeprom = false;
@@ -74,9 +82,12 @@ void setup() {
   pinMode(LA, INPUT);
   pinMode(MC, INPUT);
   pinMode(MP, INPUT);
-  pinMode(GE, INPUT);
-  pinMode(ME, INPUT);
   pinMode(FAN, OUTPUT);
+  pinMode(RELE1, OUTPUT);
+  pinMode(RELE2, OUTPUT);
+  pinMode(RELE2, OUTPUT);
+  //Servo1.attach(A2);
+  //Servo1.write(0);
   // Interrupciones
   attachInterrupt(digitalPinToInterrupt(GE), estado_guardarEeprom, FALLING);
   attachInterrupt(digitalPinToInterrupt(ME), estado_mostrarEeprom, FALLING);
@@ -330,15 +341,24 @@ void recibirSolicitudesMQTT() {
     receivedData.trim();  // Elimina espacios en blanco al principio y al final
     ultimoDatoEnviado = receivedData;
     Serial.println(receivedData);
-
+    
     if (receivedData.equals("0")) {
-      digitalWrite(FAN, LOW);
-      Serial.println("Apagando el ventilador");
-      enviarDatosSerial();
+      if (velocidad == false){
+        digitalWrite(RELE2, HIGH);
+        Serial.println("Encendiendo el ventilador rapido");
+        enviarDatosSerial();
+        velocidad = true;
+      } else {
+        digitalWrite(FAN, LOW);
+        Serial.println("Apagando el ventilador");
+        enviarDatosSerial();
+        digitalWrite(RELE2, LOW);
+        velocidad = false;
+      }
       delay(100);
     } else if (receivedData.equals("1")) {
       digitalWrite(FAN, HIGH);
-      Serial.println("Encendiendo el ventilador");
+      Serial.println("Encendiendo el ventilador despacio");
       enviarDatosSerial();
       delay(100);
     } else if (receivedData.equals("2")) {
@@ -373,7 +393,21 @@ void recibirSolicitudesMQTT() {
       lcd.print("DATOS");
       enviarDatosSerial();
       delay(1000);
-    }
+    } else if (receivedData.equals("5")) {
+    
+      if (foco == false){
+        digitalWrite(RELE1, HIGH);
+        Serial.println("Encendiendo el foco");
+        enviarDatosSerial();
+        foco = true;
+      } else {
+        enviarDatosSerial();
+        digitalWrite(RELE1, LOW);
+        Serial.println("Apagando el foco");
+        foco = false;
+      }
+      delay(100);
+    } 
   }
 }
 
