@@ -42,6 +42,12 @@ int estadoBMT = 0;
 int estadoBLA = 0;
 int estadoBMC = 0;
 int estadoBMP = 0;
+int focoval;
+int door;
+int contador = 0;
+int contador1 = 0;
+int humanoval;
+int velocidad1;
 
 // Define variables para indicar si se debe mostrar cada tipo de dato
 bool mostrarTemperatura = false;
@@ -52,6 +58,8 @@ bool velocidad = false;
 bool foco = false;
 bool puerta = false;
 bool humano = false;
+bool calidadaire = false;
+
 // Declara una variable booleana para controlar el estado del servo
 bool activarServo = false;
 
@@ -148,7 +156,67 @@ void loop() {
   digitalWrite(trig, LOW);
 
   t = pulseIn(echo, HIGH);  //obtenemos el ancho del pulso
-  d = t / 59;               // escalamos una distancia en cm.
+  d = t / 59;      // escalamos una distancia en cm.
+ 
+
+  if (raw_data > 100){
+    contador1 += 1;
+    if (contador1 == 20) {
+        humanoval = 3;
+        calidadaire = true;
+        delay(100);
+        enviarDatosSerial();
+    } else if (contador1 == 40) {
+        calidadaire = true;
+        digitalWrite(RELE2, HIGH);
+        digitalWrite(FAN, HIGH);
+        Serial.println("Encendiendo el ventilador rapido");
+        contador1 = 0;
+        delay(100);
+        humanoval = 4;
+        enviarDatosSerial();
+    }
+} else {
+    if(velocidad1 == 0){
+      digitalWrite(RELE2, LOW);
+      digitalWrite(FAN, LOW);
+    } else if (velocidad == 1){
+      digitalWrite(RELE2, LOW);
+      digitalWrite(FAN, HIGH);
+    }
+    contador1 = 0;
+    humanoval = 0;
+    calidadaire = false;
+}
+delay(100);
+
+  if (d > 200) {
+    contador += 1; 
+    if (contador == 20) {
+        humanoval = 1;
+        humano = true;
+        delay(100);
+        enviarDatosSerial();
+    } else if (contador == 40) {
+        humanoval = 2;
+        humano = true;
+        digitalWrite(RELE1, HIGH);
+        focoval = 0;
+        Serial.println("Apagando el foco");
+        foco = false;
+        contador = 0;
+        delay(100);
+        enviarDatosSerial();
+    }
+} else {
+    contador = 0;
+    humanoval = 0;
+    humano = false;
+}
+delay(100);
+
+
+  
 
   /*if (d < 1500){
     Serial.println(d);
@@ -319,16 +387,9 @@ void enviarDatosSerial() {
   d = t / 59;               // escalamos una distancia en cm.
   int estadoVentilador = digitalRead(FAN);
   int estadoFoco = digitalRead(RELE1);
-  int foco;
-  if (estadoFoco == 1){
-    foco = 0;
-  } else {
-    foco = 1;
-  }
-
-
+ 
   // Construir la cadena de datos
-  String dataToSend = String(d ? d : 0) + "," + String(lum_data ? lum_data : 0) + "," + String(raw_data ? raw_data : 0) + "," + String(temp ? temp : 0) + "," + String(humedad ? humedad : 0) + "," + String(estadoVentilador ? estadoVentilador : 0) + "," + String(foco ? foco : 0);
+  String dataToSend = String(d ? d : 0) + "," + String(lum_data ? lum_data : 0) + "," + String(raw_data ? raw_data : 0) + "," + String(temp ? temp : 0) + "," + String(humedad ? humedad : 0) + "," + String(velocidad1 ? velocidad1 : 0) + "," + String(focoval ? focoval : 0) + "," + String(door ? door : 0) + "," + String(humanoval ? humanoval : 0);
 
   // Enviar los datos a través de la comunicación serial
   //Serial.println("Enviando datos: " + dataToSend);
@@ -372,18 +433,21 @@ void recibirSolicitudesMQTT() {
       if (velocidad == false){
         digitalWrite(RELE2, HIGH);
         Serial.println("Encendiendo el ventilador rapido");
-        enviarDatosSerial();
+        velocidad1 = 2;
         velocidad = true;
+        enviarDatosSerial();
       } else {
         digitalWrite(FAN, LOW);
         Serial.println("Apagando el ventilador");
-        enviarDatosSerial();
         digitalWrite(RELE2, LOW);
         velocidad = false;
+        velocidad1 = 0;
+        enviarDatosSerial();
       }
       delay(100);
     } else if (receivedData.equals("1")) {
       digitalWrite(FAN, HIGH);
+      velocidad1 = 1;
       Serial.println("Encendiendo el ventilador despacio");
       enviarDatosSerial();
       delay(100);
@@ -423,14 +487,18 @@ void recibirSolicitudesMQTT() {
     
       if (foco == false){
         digitalWrite(RELE1, LOW);
+        focoval = 1;
         Serial.println("Encendiendo el foco");
-        enviarDatosSerial();
         foco = true;
-      } else {
+        delay(100);
         enviarDatosSerial();
+      } else {
         digitalWrite(RELE1, HIGH);
+        focoval = 0;
         Serial.println("Apagando el foco");
         foco = false;
+        delay(100);
+        enviarDatosSerial();
       }
       delay(100);
     } else if (receivedData.equals("6")) {
@@ -438,13 +506,17 @@ void recibirSolicitudesMQTT() {
       if (puerta == false){
         Servo1.write(0);
         Serial.println("Abriendo la puerta");
-        enviarDatosSerial();
+        door = 1;
         puerta = true;
+        delay(100);
+        enviarDatosSerial();
       } else {
         Servo1.write(90);
-        enviarDatosSerial();
+        door = 0;
         Serial.println("Cerrando la puerta");
         puerta = false;
+        delay(100);
+        enviarDatosSerial();
       }
       delay(100);
     } 

@@ -6,7 +6,25 @@ const mqtt = require("mqtt");
 const protocol = process.env.MQTT_PROTOCOL || "ws";
 const host = process.env.MQTT_HOST;
 const port = process.env.MQTT_PORT;
-
+const notifies = [
+  {},
+  {
+    title: "Alerta de foco",
+    message: "Ilumincación encedida sin presencia humanda.",
+  },
+  {
+    title: "Alerta de foco",
+    message: "Iluminación apagada para ahorro de energía.",
+  },
+  {
+    title: "Alerta de calidad de aire",
+    message: "Aire de la habitación en condiciones no optima.",
+  },
+  {
+    title: "Alerta de calidad de aire",
+    message: "Aire en la habitación en condiciones óptimas.",
+  },
+];
 const path = "/mqtt";
 const clientId = `mqtt_${Math.random().toString(16).slice(3)}`;
 
@@ -32,43 +50,56 @@ const suscribirse = () => {
 
 const mensajesMQTT = async (topic, payload) => {
   console.log("Mensaje Recibido:", topic, payload.toString());
-
-  if (message.toString().startsWith("eeprom")) {
+  pool.query("SELECT * from sensor_valores;", (error, result) => {
+    console.log("Rows:", result.rows);
+  });
+  if (payload.toString().startsWith("eeprom")) {
   } else {
-    var data = message.toString().split(",");
-    if (data.length !== 9) return;
+    var data = payload.toString().split(",");
+    console.log("Data:", data);
+    if (data.length > 7) {
+      var proximity = data[0];
+      var light = data[1];
+      var airQuality = data[2];
+      var temperature = data[3];
+      var humidity = data[4];
 
-    var proximity = data[0];
-    var light = data[1];
-    var airQuality = data[2];
-    var temperature = data[3];
-    var humidity = data[4];
+      var notify = parseInt(data[8])
+  
+      var hora = null;
+      var fecha = null;
+      // Hacer consultas a la base de datos
+ try {       
 
-    var hora = null;
-    var fecha = null;
-    // Hacer consultas a la base de datos
-    pool.query("SELECT NOW() as fechaFull;", (error, result) => {
-      console.log("Error:", error);
-      console.log("Result:", result);
-      fecha = result.rows[0].fechafull;
-    });
 
-    pool.query(
-      "SELECT ROUND((EXTRACT(HOUR FROM NOW()) + EXTRACT(MINUTE FROM NOW()) / 60.0 + EXTRACT(SECOND FROM NOW()) / 3600.0)::numeric, 4) AS hora_double;",
-      (error, result) => {
-        console.log("Error:", error);
-        console.log("Result:", result);
-        hora = result.rows[0].hora_double;
+  
+  // get hour now
+  const hour = new Date().getHours();
+  const minutes = new Date().getMinutes();
+  const seconds = new Date().getSeconds();
+  console.log("Hora:", hour, minutes);
+  const hourminutes = `${hour}.${seconds}`;
+
+
+
+      pool.query(
+        `INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (1, ${temperature}, ${hourminutes});
+        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (2, ${light}, ${hourminutes});
+        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (3, ${airQuality}, ${hourminutes});
+        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (4, ${humidity}, ${hourminutes});
+        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (5, ${proximity}, ${hourminutes});`
+      );
+
+      if (notify > 0) {
+        console.log("Notificación:", notify);
+        console.log("Notificación:", notifies[notify]);
+        pool.query(
+          `INSERT INTO notificaciones (id, tipo, mensaje) VALUES (${notify},'${notifies[notify].title}', '${notifies[notify].message}');`
+        );
       }
-    );
-
-    pool.query(
-      `INSERT INTO sensor_valores (sensor_id, valor, hora, fecha) VALUES (1, ${temperature}, ${hora}, ${fecha});
-      INSERT INTO sensor_valores (sensor_id, valor, hora, fecha) VALUES (2, ${light}, ${hora}, ${fecha});
-      INSERT INTO sensor_valores (sensor_id, valor, hora, fecha) VALUES (3, ${airQuality}, ${hora}, ${fecha});
-      INSERT INTO sensor_valores (sensor_id, valor, hora, fecha) VALUES (4, ${humidity}, ${hora}, ${fecha});
-      INSERT INTO sensor_valores (sensor_id, valor, hora, fecha) VALUES (5, ${proximity}, ${hora}, ${fecha});`
-    );
+  } catch (error) {
+    console.log("Error:", error);
+  }}
   }
 };
 
