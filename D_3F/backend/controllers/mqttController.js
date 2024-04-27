@@ -1,12 +1,12 @@
-const mysqlConnection = require("../database/db");
-const util = require("util");
-const query = util.promisify(mysqlConnection.query).bind(mysqlConnection);
+const pool = require("../database/db");
+require("dotenv").config();
 
 const mqtt = require("mqtt");
 
-const protocol = "ws";
-const host = "broker.emqx.io";
-const port = "8083";
+const protocol = process.env.MQTT_PROTOCOL || "ws";
+const host = process.env.MQTT_HOST;
+const port = process.env.MQTT_PORT;
+
 const path = "/mqtt";
 const clientId = `mqtt_${Math.random().toString(16).slice(3)}`;
 
@@ -16,62 +16,59 @@ const client = mqtt.connect(connectUrl, {
   clientId,
   clean: true,
   connectTimeout: 4000,
-  username: "",
-  password: "",
+  username: process.env.MQTT_USERNAME,
+  password: process.env.MQTT_PASSWORD,
   reconnectPeriod: 4000,
 });
 
-const TOPIC_TEMPERATURA = "topic/temperatura_G100";
-
-/* ** ENDPOINT ** */
-const publicacionesMQTT = async (req, res) => {
-  const body = req.body;
-  console.log("body", body);
-
-  try {
-    const resFechaHora = await query("SELECT NOW() as fechaFull;");
-
-    const dataSensor = {
-      topic: body.topic,
-      valor: body.payload,
-      fecha: resFechaHora[0].fechaFull,
-    };
-
-    await query("INSERT INTO sensores SET ?", dataSensor);
-
-    res.status(200).json({ message: `Topic Recibido - ${body.topic}` });
-  } catch (error) {
-    console.error("ERROR: publicacionesMQTT - ", error);
-
-    res.status(500).json({
-      status: "FAILED",
-      message: "Error al enviar solicitud de amistad",
-    });
-  }
-};
+const TOPIC = "project2g7";
 
 /* ** EVENTOS MQTT ** */
 const suscribirse = () => {
-  client.subscribe([TOPIC_TEMPERATURA], () => {
-    console.log(`Suscrito al topic '${TOPIC_TEMPERATURA}'`);
+  client.subscribe([TOPIC], () => {
+    console.log(`Suscrito al topic '${TOPIC}'`);
   });
 };
 
 const mensajesMQTT = async (topic, payload) => {
   console.log("Mensaje Recibido:", topic, payload.toString());
 
-  try {
-    const resFechaHora = await query("SELECT NOW() as fechaFull;");
+  if (message.toString().startsWith("eeprom")) {
+  } else {
+    var data = message.toString().split(",");
+    if (data.length !== 9) return;
 
-    const dataSensor = {
-      topic: topic,
-      valor: payload.toString(),
-      fecha: resFechaHora[0].fechaFull,
-    };
+    var proximity = data[0];
+    var light = data[1];
+    var airQuality = data[2];
+    var temperature = data[3];
+    var humidity = data[4];
 
-    await query("INSERT INTO sensores SET ?", dataSensor);
-  } catch (error) {
-    console.error("ERROR: mensajesMQTT - ", error);
+    var hora = null;
+    var fecha = null;
+    // Hacer consultas a la base de datos
+    pool.query("SELECT NOW() as fechaFull;", (error, result) => {
+      console.log("Error:", error);
+      console.log("Result:", result);
+      fecha = result.rows[0].fechafull;
+    });
+
+    pool.query(
+      "SELECT ROUND((EXTRACT(HOUR FROM NOW()) + EXTRACT(MINUTE FROM NOW()) / 60.0 + EXTRACT(SECOND FROM NOW()) / 3600.0)::numeric, 4) AS hora_double;",
+      (error, result) => {
+        console.log("Error:", error);
+        console.log("Result:", result);
+        hora = result.rows[0].hora_double;
+      }
+    );
+
+    pool.query(
+      `INSERT INTO sensor_valores (sensor_id, valor, hora, fecha) VALUES (1, ${temperature}, ${hora}, ${fecha});
+      INSERT INTO sensor_valores (sensor_id, valor, hora, fecha) VALUES (2, ${light}, ${hora}, ${fecha});
+      INSERT INTO sensor_valores (sensor_id, valor, hora, fecha) VALUES (3, ${airQuality}, ${hora}, ${fecha});
+      INSERT INTO sensor_valores (sensor_id, valor, hora, fecha) VALUES (4, ${humidity}, ${hora}, ${fecha});
+      INSERT INTO sensor_valores (sensor_id, valor, hora, fecha) VALUES (5, ${proximity}, ${hora}, ${fecha});`
+    );
   }
 };
 
@@ -79,5 +76,4 @@ module.exports = {
   client,
   suscribirse,
   mensajesMQTT,
-  publicacionesMQTT,
 };
