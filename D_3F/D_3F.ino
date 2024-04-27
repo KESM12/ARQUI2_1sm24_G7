@@ -51,7 +51,9 @@ bool mostrarProximidad = false;
 bool velocidad = false;
 bool foco = false;
 bool puerta = false;
-
+bool humano = false;
+// Declara una variable booleana para controlar el estado del servo
+bool activarServo = false;
 
 volatile bool guardarEeprom = false;
 volatile bool mostrarEeprom = false;
@@ -87,7 +89,6 @@ void setup() {
   pinMode(FAN, OUTPUT);
   pinMode(RELE1, OUTPUT);
   pinMode(RELE2, OUTPUT);
-  pinMode(RELE2, OUTPUT);
   Servo1.attach(A2); // Adjunta el objeto al pin A2
   Servo1.write(90);
   digitalWrite(RELE1, HIGH);
@@ -109,8 +110,10 @@ void setup() {
 //==========================================================================================================
 
 void loop() {
-
+  if (mySerial.available() > 0) {
   recibirSolicitudesMQTT();
+  }
+
 
   /*
   // Verificar si ha pasado el intervalo de 1 segundo
@@ -146,6 +149,18 @@ void loop() {
 
   t = pulseIn(echo, HIGH);  //obtenemos el ancho del pulso
   d = t / 59;               // escalamos una distancia en cm.
+
+  /*if (d < 1500){
+    Serial.println(d);
+  }
+  if (mySerial.available() > 0) {
+    recibirSolicitudesMQTT();
+    delay(100);
+  } else {
+    enviarDatosSerial();
+  }*/
+  
+  
 
   estadoBMT = digitalRead(MT);  // Lectura del botón para temperatura y humedad
   estadoBLA = digitalRead(LA);  // Lectura del botón para luminosidad
@@ -303,9 +318,17 @@ void enviarDatosSerial() {
   t = pulseIn(echo, HIGH);  //obtenemos el ancho del pulso
   d = t / 59;               // escalamos una distancia en cm.
   int estadoVentilador = digitalRead(FAN);
+  int estadoFoco = digitalRead(RELE1);
+  int foco;
+  if (estadoFoco == 1){
+    foco = 0;
+  } else {
+    foco = 1;
+  }
+
 
   // Construir la cadena de datos
-  String dataToSend = String(d ? d : 0) + "," + String(lum_data ? lum_data : 0) + "," + String(raw_data ? raw_data : 0) + "," + String(temp ? temp : 0) + "," + String(humedad ? humedad : 0) + "," + String(estadoVentilador ? estadoVentilador : 0);
+  String dataToSend = String(d ? d : 0) + "," + String(lum_data ? lum_data : 0) + "," + String(raw_data ? raw_data : 0) + "," + String(temp ? temp : 0) + "," + String(humedad ? humedad : 0) + "," + String(estadoVentilador ? estadoVentilador : 0) + "," + String(foco ? foco : 0);
 
   // Enviar los datos a través de la comunicación serial
   //Serial.println("Enviando datos: " + dataToSend);
@@ -414,7 +437,6 @@ void recibirSolicitudesMQTT() {
     
       if (puerta == false){
         Servo1.write(0);
-
         Serial.println("Abriendo la puerta");
         enviarDatosSerial();
         puerta = true;
