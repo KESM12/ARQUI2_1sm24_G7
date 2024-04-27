@@ -89,7 +89,8 @@ void setup() {
   pinMode(RELE2, OUTPUT);
   pinMode(RELE2, OUTPUT);
   Servo1.attach(A2); // Adjunta el objeto al pin A2
-  Servo1.write(0);
+  Servo1.write(90);
+  digitalWrite(RELE1, HIGH);
   // Interrupciones
   attachInterrupt(digitalPinToInterrupt(GE), estado_guardarEeprom, FALLING);
   attachInterrupt(digitalPinToInterrupt(ME), estado_mostrarEeprom, FALLING);
@@ -398,13 +399,13 @@ void recibirSolicitudesMQTT() {
     } else if (receivedData.equals("5")) {
     
       if (foco == false){
-        digitalWrite(RELE1, HIGH);
+        digitalWrite(RELE1, LOW);
         Serial.println("Encendiendo el foco");
         enviarDatosSerial();
         foco = true;
       } else {
         enviarDatosSerial();
-        digitalWrite(RELE1, LOW);
+        digitalWrite(RELE1, HIGH);
         Serial.println("Apagando el foco");
         foco = false;
       }
@@ -412,13 +413,13 @@ void recibirSolicitudesMQTT() {
     } else if (receivedData.equals("6")) {
     
       if (puerta == false){
-        Servo1.write(90);
+        Servo1.write(0);
 
         Serial.println("Abriendo la puerta");
         enviarDatosSerial();
         puerta = true;
       } else {
-        Servo1.write(0);
+        Servo1.write(90);
         enviarDatosSerial();
         Serial.println("Cerrando la puerta");
         puerta = false;
