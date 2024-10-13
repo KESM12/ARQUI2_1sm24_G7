@@ -8,10 +8,10 @@ const char *password = "A8151623a2";  // Replace with your WiFi password
 
 // MQTT Broker settings
 const int mqtt_port = 8883;                                     // MQTT port (TLS)
-const char *mqtt_broker = "ebc4ebe4.ala.us-east-1.emqxsl.com";  // EMQX broker endpoint
+const char *mqtt_broker = "w2fea0a7.ala.us-east-1.emqxsl.com";  // EMQX broker endpoint
 const char *mqtt_topic = "project2g7";                          // MQTT topic
-const char *mqtt_username = "edwin";                            // MQTT username for authentication
-const char *mqtt_password = "edwin";                            // MQTT password for authentication
+const char *mqtt_username = "oscar";                            // MQTT username for authentication
+const char *mqtt_password = "oscar";                            // MQTT password for authentication
 
 // NTP Server settings
 const char *ntp_server = "pool.ntp.org";  // Default NTP server// const char* ntp_server = "cn.pool.ntp.org"; // Recommended NTP server for users in China
@@ -137,7 +137,7 @@ void connectToMQTT() {
         Serial.println("MQTT broker conectado");
         mqtt_client.subscribe(mqtt_topic);
         // Publish message upon successful connection
-        mqtt_client.publish(mqtt_topic, "Hi EMQX I'm ESP8266 ^^");
+        mqtt_client.publish(mqtt_topic, "Hola EMQX I'm ESP8266 ^^");
       } else {
         char err_buf[128];
         espClient.getLastSSLError(err_buf, sizeof(err_buf));
