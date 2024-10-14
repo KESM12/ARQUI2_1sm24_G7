@@ -88,15 +88,15 @@ const handleOnReConnect = () => {
 
 const connection = ref({
   protocol: "wss",
-  host: "ebc4ebe4.ala.us-east-1.emqxsl.com",
+  host: "w2fea0a7.ala.us-east-1.emqxsl.com", // ebc4ebe4.ala.us-east-1.emqxsl.com
   port: 8084,
   endpoint: "/mqtt",
   clean: true,
   connectTimeout: 30 * 1000,
   reconnectPeriod: 4000,
   clientId: "emqx_vue3_" + Math.random().toString(16).substring(2, 8),
-  username: "edwin",
-  password: "edwin",
+  username: "oscar",
+  password: "oscar",
 });
 
 const subscription = ref({
