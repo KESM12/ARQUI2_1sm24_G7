@@ -74,20 +74,25 @@ const mensajesMQTT = async (topic, payload) => {
 
   
   // get hour now
-  const hour = new Date().getHours();
-  const minutes = new Date().getMinutes();
-  const seconds = new Date().getSeconds();
+  const date = new Date();
+  const hour = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  // const hour = new Date().getHours();
+  // const minutes = new Date().getMinutes();
+  // const seconds = new Date().getSeconds();
   console.log("Hora:", hour, minutes);
-  const hourminutes = `${hour}.${seconds}:00`;
+  const hourminutes = `${hour}:${minutes}:${seconds}`;
+  // const hourminutes = `${hour}.${seconds}`;
 
 
 
       pool.query(
-        `INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (1, ${temperature}, ${hourminutes});
-        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (2, ${light}, ${hourminutes});
-        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (3, ${airQuality}, ${hourminutes});
-        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (4, ${humidity}, ${hourminutes});
-        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (5, ${proximity}, ${hourminutes});`
+        `INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (1, ${temperature}, '${hourminutes}');
+        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (2, ${light}, '${hourminutes}');
+        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (3, ${airQuality}, '${hourminutes}');
+        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (4, ${humidity}, '${hourminutes}');
+        INSERT INTO sensor_valores (sensor_id, valor, hora) VALUES (5, ${proximity}, '${hourminutes}');`
       );
 
       if (notify > 0) {
