@@ -31,23 +31,10 @@ const values = ref({
 const notifies = ref([
   {},
   {
-    title: "Alerta de foco",
-    message: "Ilumincación encedida sin presencia humanda.",
-  },
-  {
-    title: "Alerta de foco",
-    message: "Iluminación apagada para ahorro de energía.",
-  },
-  {
-    title: "Alerta de calidad de aire",
-    message: "Aire de la habitación en condiciones no optima.",
-  },
-  {
-    title: "Alerta de calidad de aire",
-    message: "Aire en la habitación en condiciones óptimas.",
+    title: "Alerta de proximidad",
+    message: "Se ha detectado movimiento en la habitación",
   },
 ]);
-
 
 const enable = ref({
   temperature: false,
@@ -101,7 +88,7 @@ const handleOnReConnect = () => {
 
 const connection = ref({
   protocol: "wss",
-  host: "w2fea0a7.ala.us-east-1.emqxsl.com",
+  host: "w2fea0a7.ala.us-east-1.emqxsl.com", // ebc4ebe4.ala.us-east-1.emqxsl.com
   port: 8084,
   endpoint: "/mqtt",
   clean: true,
@@ -168,8 +155,7 @@ const createConnection = () => {
           eeprom.value.humidity = eepromData[4];
         } else {
           var data = message.toString().split(",");
-          console.log(data);
-          if (data.length  < 6) return;
+          if (data.length !== 6) return;
           values.value.proximity = data[0];
           values.value.light = data[1];
           values.value.airQuality = data[2];
@@ -203,7 +189,6 @@ const createConnection = () => {
             enable.value.door = false;
           }
 
-          console.log(notify)
           if (notify > 0) {
             notifyMsg.value = notifies.value[notify].message;
             notifyTitle.value = notifies.value[notify].title;

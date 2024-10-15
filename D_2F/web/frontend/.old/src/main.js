@@ -16,9 +16,7 @@ import {
   faDroplet,
   faTemperatureQuarter,
   faSave,
-  faSync,
-  faDoorOpen,
-  faSun,
+  faSync
 } from "@fortawesome/free-solid-svg-icons";
 import { faDev } from "@fortawesome/free-brands-svg-icons";
 
@@ -35,9 +33,7 @@ library.add(
   faDroplet,
   faTemperatureQuarter,
   faSave,
-  faSync,
-  faDoorOpen,
-  faSun
+  faSync
 );
 const app = createApp(App);
 
