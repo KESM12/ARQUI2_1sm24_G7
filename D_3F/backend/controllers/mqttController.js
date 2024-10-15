@@ -78,7 +78,7 @@ const mensajesMQTT = async (topic, payload) => {
   const minutes = new Date().getMinutes();
   const seconds = new Date().getSeconds();
   console.log("Hora:", hour, minutes);
-  const hourminutes = `${hour}.${seconds}`;
+  const hourminutes = `${hour}.${seconds}:00`;
 
 
 
